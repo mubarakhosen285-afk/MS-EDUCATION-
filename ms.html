@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> <title>MS EDUCATION Pro Online Exam App</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+Da+2:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-firestore.js"></script>
+<style>
+/* -------------------- থিম এবং ব্যাকগ্রাউন্ড -------------------- */
+:root {
+    --primary-color: #0d47a1; /* গাঢ় নীল */
+    --secondary-color: #ffb300; /* সোনালী হলুদ */
+    --success-color: #00c853; /* সবুজ */
+    --danger-color: #d32f2f; /* লাল */
+    --info-color: #00bcd4; /* হালকা নীল */
+    --bg-gradient: linear-gradient(145deg, #1e3c72, #2a5298); /* প্রিমিয়াম গাঢ় গ্রেডিয়েন্ট */
+    --card-bg: #ffffff;
+    --text-color: #212121;
+}
+body { 
+    font-family: 'Baloo Da 2', sans-serif; 
+    background: var(--bg-gradient); 
+    margin:0; 
+    padding:0; 
+    display:flex; 
+    justify-content:center; 
+    min-height:100vh; 
+    align-items:flex-start; 
+    color: var(--text-color);
+}
+#app { 
+    background: var(--card-bg); 
+    padding:30px; 
+    border-radius:20px; 
+    box-shadow:0 15px 40px rgba(0,0,0,0.6); /* উন্নত শ্যাডো */
+    width:100%; 
+    max-width:750px; 
+    margin-top:40px; 
+    margin-bottom: 40px;
+    border: 5px solid var(--secondary-color); 
+    display: none; 
+    transition: all 0.5s ease;
+}
+h2 { 
+    text-align:center; 
+    color: var(--primary-color); 
+    margin-bottom:25px; 
+    border-bottom: 3px solid var(--secondary-color); 
+    padding-bottom: 15px;
+    font-size: 30px;
+    font-weight: 800;
+}
+/* -------------------- ফর্ম ইনপুট -------------------- */
+.input-group{margin:15px 0;}
+input, select, textarea{
+    width:100%; 
+    padding:16px; 
+    border-radius:8px; 
+    border:1px solid #ccc; 
+    font-size:17px; 
+    box-sizing: border-box;
+    transition: all 0.3s;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+input:focus, select:focus, textarea:focus { 
+    border-color: var(--primary-color); 
+    box-shadow: 0 0 10px rgba(13, 71, 161, 0.5); 
+}
+/* -------------------- বাটন স্টাইল -------------------- */
+button{
+    width:100%; 
+    padding:16px; 
+    border:none; 
+    font-size:18px; 
+    border-radius:8px; 
+    cursor:pointer; 
+    margin-top:15px; 
+    transition: all 0.3s ease; 
+    box-shadow:0 4px 15px rgba(0,0,0,0.2); 
+    font-weight:bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+button:hover{transform: translateY(-3px); box-shadow:0 8px 20px rgba(0,0,0,0.3);}
+button i { margin-right: 10px; font-size: 20px; }
+
+#teacher button:not(.share-btn):not(.utility-btn){background:var(--success-color); color:white;}
+#quiz .options button{background:var(--primary-color); color:white; margin-bottom: 12px;}
+#quiz .options button:hover{background:#0d3d8f;}
+
+/* Share Buttons */
+#shareWhatsapp{background:#25D366;}
+#shareMessenger{background:#0084FF;}
+#shareTelegram{background:#0088cc;}
+
+/* Utility Buttons (শিক্ষক প্যানেল) */
+.utility-btn {
+    background: var(--info-color) !important;
+    color: white !important;
+    margin-bottom: 10px;
+}
+/* -------------------- টেবিল এবং রেজাল্ট -------------------- */
+table{width:100%; border-collapse:collapse; margin-top:20px;}
+table, th, td{border:1px solid #ddd;}
+th, td{padding:12px; text-align:center; font-size: 15px;}
+th{background:var(--primary-color); color:white; font-size: 16px;}
+.result{text-align:center; font-size:26px; margin-top:30px; font-weight: 800; color: var(--danger-color);}
+.detail-btn { 
+    background: var(--secondary-color); 
+    color: var(--text-color); 
+    width: auto !important; 
+    padding: 8px 15px !important; 
+    margin: 0; 
+    font-size: 15px !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+.detail-btn i { color: var(--text-color); margin-right: 5px; }
+
+/* -------------------- SPLASH/INTRO ANIMATION -------------------- */
+#splashScreen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: var(--bg-gradient); display: flex;
+    justify-content: center; align-items: center; flex-direction: column;
+    z-index: 9999; color: white; font-family: 'Baloo Da 2', sans-serif;
+}
+.splash-title {
+    font-size: 60px;
+    font-weight: 800;
+    margin-bottom: 20px;
+    opacity: 0;
+    animation: fadeInScale 2s forwards;
+    letter-spacing: 3px;
+    border: 5px solid var(--secondary-color);
+    padding: 20px 40px;
+    border-radius: 20px;
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.7);
+}
+.splash-subtitle {
+    font-size: 28px;
+    opacity: 0;
+    animation: fadeIn 2s 1s forwards;
+}
+@keyframes fadeInScale {
+    0% { transform: scale(0.5); opacity: 0; }
+    80% { transform: scale(1.05); opacity: 1; }
+    100% { transform: scale(1); }
+}
+@keyframes fadeIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+}
+
+/* -------------------- জ্বলন্ত টাইটেল (RGB Glow & Move Effect) -------------------- */
+.glow-title {
+    text-align: center;
+    font-size: 35px; 
+    font-weight: 800;
+    margin-bottom: 5px; /* মার্জিন কমানো হলো */
+    
+    /* RGB Glow Set Up */
+    color: #fff;
+    background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    
+    /* Animation: Glow + Horizontal Move */
+    animation: rgbGlowAndMove 4s infinite linear alternate, 
+               horizontalMove 1.5s infinite alternate ease-in-out;
+    
+    display: block; 
+    padding: 5px 0;
+    width: fit-content; 
+    margin-left: auto; 
+    margin-right: auto; 
+}
+
+/* RGB কালার গ্লো অ্যানিমেশন */
+@keyframes rgbGlowAndMove {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* ডানে-বামে সরার অ্যানিমেশন */
+@keyframes horizontalMove {
+    from { transform: translateX(-15px); } 
+    to { transform: translateX(15px); }
+}
+
+/* শিক্ষক তথ্য স্টাইল */
+.teacher-info {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 18px;
+    color: #424242; /* গাঢ় ধূসর */
+    font-weight: 700;
+    line-height: 1.5;
+}
+.teacher-info span {
+    color: var(--primary-color);
+    font-weight: 800;
+}
+
+/* -------------------- Modal এবং রেজাল্ট শীট স্টাইল -------------------- */
+.modal { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.7); }
+.modal-content { 
+    background-color: var(--card-bg); margin: 5% auto; padding: 25px; border-radius: 15px; 
+    width: 90%; max-width: 700px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+.close { color: #aaa; float: right; font-size: 32px; font-weight: bold; }
+.close:hover, .close:focus { color: #000; text-decoration: none; cursor: pointer; }
+#resultSheet {
+    border: 2px solid var(--primary-color); 
+    padding: 20px; 
+    border-radius: 10px; 
+    margin-top: 15px;
+}
+.sheet-header h3 {
+    color: var(--primary-color);
+    border-bottom: 2px dashed var(--secondary-color);
+    padding-bottom: 10px;
+    margin-bottom: 5px;
+}
+.sheet-info p { margin: 5px 0; font-size: 16px; }
+.ans-correct { color: var(--success-color); font-weight: bold; }
+.ans-incorrect { color: var(--danger-color); font-weight: bold; }
+
+/* Print স্টাইল */
+@media print {
+    body * { visibility: hidden; }
+    #detailModal, #detailModal * { visibility: visible; }
+    #detailModal { position: absolute; left: 0; top: 0; }
+    .close, #printBtn { display: none !important; }
+    .modal-content { margin: 0; width: 100%; box-shadow: none; border: none; }
+    #resultSheet { border: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="splashScreen">
+    <div class="splash-title">MS EDUCATION</div>
+    <div class="splash-subtitle">অনলাইন পরীক্ষা ব্যবস্থা</div>
+</div>
+
+<div id="app">
+<div id="teacher">
+<div class="glow-title">MS EDUCATION</div>
+
+<div class="teacher-info">
+    শিক্ষক: **মোবারক হোসেন**<br>
+    <i class="fas fa-mosque" style="color: var(--primary-color);"></i> আল হামরা নূরানী মাদরাসা
+</div>
+
+<h2><i class="fas fa-chalkboard-teacher"></i> শিক্ষক প্যানেল</h2>
+<div class="input-group">
+<input type="text" id="examTitle" placeholder="পরীক্ষার শিরোনাম লিখুন">
+</div>
+<div class="input-group">
+<input type="number" id="examDuration" placeholder="সময়সীমা দিন (মিনিটে)">
+</div>
+<p class="warning"><i class="fas fa-exclamation-triangle"></i> শেয়ারের সমস্যা এড়াতে ফাইলটি অবশ্যই অনলাইনে হোস্ট করুন।</p>
+
+<div id="questionForms">
+<div class="question-container">
+<div class="input-group"><input type="text" class="qText" placeholder="প্রশ্ন লিখুন"></div>
+<div class="input-group">
+<input type="text" class="opt" placeholder="অপশন ১">
+<input type="text" class="opt" placeholder="অপশন ২">
+<input type="text" class="opt" placeholder="অপশন ৩">
+<input type="text" class="opt" placeholder="অপশন ৪">
+</div>
+<div class="input-group">
+<label>সঠিক উত্তর:</label>
+<select class="correctAnswer">
+<option value="0">অপশন ১</option>
+<option value="1">অপশন ২</option>
+<option value="2">অপশন ৩</option>
+<option value="3">অপশন ৪</option>
+</select>
+</div>
+</div>
+</div>
+<button id="addQuestionBtn" onclick="addQuestion()"><i class="fas fa-plus-circle"></i> আরও প্রশ্ন যোগ করুন</button>
+<button onclick="generateExamLink()"><i class="fas fa-link"></i> পরীক্ষার লিঙ্ক তৈরি করুন</button>
+
+<div id="examLinkContainer" style="display:none;">
+<div class="glow-title" style="font-size: 30px;">MS EDUCATION - পরীক্ষার লিঙ্ক</div>
+<div id="examLink" class="link-box"></div>
+
+<button id="shareWhatsapp" class="share-btn" onclick="shareLink('whatsapp')"><i class="fab fa-whatsapp"></i> WhatsApp এ শেয়ার করুন</button>
+<button id="shareMessenger" class="share-btn" onclick="shareLink('messenger')"><i class="fab fa-facebook-messenger"></i> Messenger এ শেয়ার করুন</button>
+<button id="shareTelegram" class="share-btn" onclick="shareLink('telegram')"><i class="fab fa-telegram-plane"></i> Telegram এ শেয়ার করুন</button>
+</div>
+
+<h3><i class="fas fa-clipboard-list"></i> পরীক্ষার ফলাফল তালিকা</h3>
+<button class="utility-btn" onclick="updateResultTable()"><i class="fas fa-sync-alt"></i> রেজাল্ট আপডেট করুন</button>
+
+<table id="resultTable">
+<tr>
+<th>পরীক্ষার নাম</th><th>ছাত্রের নাম</th><th>শ্রেণী</th><th>মোবাইল নং</th><th>স্কোর</th><th>বিস্তারিত</th>
+</tr>
+</table>
+</div>
+
+<div id="student" style="display:none;">
+<div class="glow-title">MS EDUCATION</div>
+<div class="teacher-info">
+    পরীক্ষা পরিচালনায়: **মোবারক হোসেন**<br>
+    <i class="fas fa-mosque" style="color: var(--primary-color);"></i> আল হামরা নূরানী মাদরাসা
+</div>
+<h2><i class="fas fa-edit"></i> পরীক্ষা শুরু করুন</h2>
+<div class="input-group">
+<label class="mandatory-label">ছাত্র/ছাত্রীর নাম:</label>
+<input type="text" id="studentName" placeholder="আপনার নাম লিখুন">
+</div>
+<div class="input-group">
+<label class="mandatory-label">শ্রেণী (Class):</label>
+<select id="studentClass">
+<option value="">-- শ্রেণী নির্বাচন করুন --</option>
+<script>
+    for (let i = 1; i <= 12; i++) {
+        document.write(`<option value="Class ${i}">Class ${i}</option>`);
+    }
+</script>
+</select>
+</div>
+<div class="input-group">
+<label class="mandatory-label">মোবাইল নম্বর:</label>
+<input type="tel" id="studentMobile" placeholder="মোবাইল নম্বর লিখুন (বাধ্যতামূলক)">
+</div>
+<p style="text-align: center; color: var(--danger-color); font-weight: bold;">⚠️ সতর্কতা: একবার শুরু করলে সময় গণনা শুরু হবে।</p>
+<button onclick="startExam()"><i class="fas fa-play"></i> পরীক্ষা শুরু করুন</button>
+</div>
+
+<div id="quiz" style="display:none;">
+<div class="glow-title">MS EDUCATION</div>
+<h2 id="examTitleDisplay"></h2>
+<div class="timer" id="timerDisplay">সময়: 00:00</div>
+<div class="question" id="questionText"></div>
+<div class="options">
+<button onclick="selectAnswer(0)" id="opt0"></button>
+<button onclick="selectAnswer(1)" id="opt1"></button>
+<button onclick="selectAnswer(2)" id="opt2"></button>
+<button onclick="selectAnswer(3)" id="opt3"></button>
+</div>
+</div>
+
+<div id="result" style="display:none;">
+<h2><i class="fas fa-check-circle"></i> পরীক্ষা সম্পন্ন</h2>
+<div class="result" id="scoreText"></div>
+<p style="text-align: center; color: var(--primary-color); margin-top: 20px;">আপনার পরীক্ষার ফলাফল আপনার শিক্ষককে জানিয়ে দেওয়া হয়েছে।</p>
+</div>
+</div>
+
+<div id="error-message">
+    দুঃখিত, এই পরীক্ষাটি পাওয়া যায়নি বা লিঙ্কটি ভুল। 😔
+    <p style="font-size: 18px; margin-top: 20px;"><a href="${location.href.split("?")[0]}" style="color: var(--primary-color);">হোম পেজে ফিরে যান (শিক্ষক প্যানেল)</a></p>
+</div>
+
+<div id="detailModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <div id="modalContent">
+            </div>
+        <button id="printBtn" onclick="window.print()" style="background: var(--info-color); color: white;"><i class="fas fa-print"></i> রেজাল্ট শীট প্রিন্ট/PDF করুন</button>
+    </div>
+</div>
+
+<script>
+// ====================================================================
+// !!! আপনার দেওয়া Firebase কনফিগারেশন বসানো হলো !!!
+// ====================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDmReTiRc0voblz_lUX_UpjL38a6YwC23A",
+  authDomain: "project1-64a93.firebaseapp.com",
+  projectId: "project1-64a93",
+  storageBucket: "project1-64a93.firebasestorage.app",
+  messagingSenderId: "198510257374",
+  appId: "1:198510257374:web:e6a1b9e74c539f5e120e4f",
+};
+
+// Firebase Initialize
+let db;
+try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+} catch (e) {
+    console.error("Firebase Initialization Failed:", e);
+}
+// ====================================================================
+
+
+let questions=[], currentQ=0, score=0, studentName="", studentClass="", studentMobile="", examTitle="", examID="", durationMinutes=0;
+let studentAnswers = []; 
+let timerInterval;
+
+function addQuestion(){
+    const formsDiv=document.getElementById('questionForms');
+    const newQContainer=document.createElement('div');
+    newQContainer.classList.add('question-container');
+    newQContainer.innerHTML=`
+    <hr>
+    <div class="input-group"><input type="text" class="qText" placeholder="প্রশ্ন লিখুন"></div>
+    <div class="input-group">
+    <input type="text" class="opt" placeholder="অপশন ১">
+    <input type="text" class="opt" placeholder="অপশন ২">
+    <input type="text" class="opt" placeholder="অপশন ৩">
+    <input type="text" class="opt" placeholder="অপশন ৪">
+    </div>
+    <div class="input-group">
+    <label>সঠিক উত্তর:</label>
+    <select class="correctAnswer">
+    <option value="0">অপশন ১</option>
+    <option value="1">অপশন ২</option>
+    <option value="2">অপশন ৩</option>
+    <option value="3">অপশন ৪</option>
+    </select>
+    </div>
+    `;
+    formsDiv.appendChild(newQContainer);
+}
+
+// পরীক্ষার লিঙ্ক তৈরি
+async function generateExamLink(){
+    examTitle=document.getElementById('examTitle').value.trim();
+    durationMinutes=parseInt(document.getElementById('examDuration').value.trim());
+
+    if(!examTitle){alert("পরীক্ষার শিরোনাম দিন!"); return;}
+    if(isNaN(durationMinutes) || durationMinutes <= 0){alert("সঠিক সময়সীমা দিন (মিনিটে)!"); return;}
+
+    questions=[];
+    const qTexts=document.getElementsByClassName('qText');
+    const optsAll=document.getElementsByClassName('opt');
+    const correctAll=document.getElementsByClassName('correctAnswer');
+    let optIndex=0;
+
+    for(let i=0;i<qTexts.length;i++){
+        const q=qTexts[i].value.trim();
+        if(!q){alert(`প্রশ্ন ${i+1} পূরণ করুন!`); return;}
+        const options=[];
+        let allOptionsFilled = true;
+        for(let j=0;j<4;j++){
+            const val=optsAll[optIndex].value.trim(); 
+            if(!val){
+                alert(`প্রশ্ন ${i+1}-এর অপশন ${j+1} পূরণ করুন!`); 
+                allOptionsFilled = false;
+                break;
+            }
+            options.push(val);
+            optIndex++; 
+        }
+        if (!allOptionsFilled) return; 
+        questions.push({
+            question: q, 
+            options: options, 
+            answer: parseInt(correctAll[i].value)
+        });
+    }
+    if (questions.length === 0) {
+        alert("পরীক্ষার জন্য কমপক্ষে একটি প্রশ্ন তৈরি করুন!");
+        return;
+    }
+
+    examID="PRO"+Math.random().toString(36).substr(2, 9).toUpperCase(); 
+
+    const examData = {
+        title: examTitle,
+        duration: durationMinutes,
+        questions: questions,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    
+    try {
+        if (!db) { throw new Error("Firebase DB not initialized."); }
+        await db.collection("exams").doc(examID).set(examData);
+        
+        const link=`${location.href.split("?")[0]}?id=${examID}`;
+        
+        document.getElementById('examLinkContainer').style.display="block";
+        document.getElementById('examLink').innerHTML=`<strong>🔗 ছাত্রদের জন্য ক্লিক লিঙ্ক:</strong><br><a href="${link}" target="_blank">${link}</a>`;
+        
+        document.getElementById('shareWhatsapp').style.display="block";
+        document.getElementById('shareMessenger').style.display="block";
+        document.getElementById('shareTelegram').style.display="block";
+        
+        if (location.protocol === 'file:') {
+             alert("সফলভাবে তৈরি! সতর্কতা: আপনি লোকাল ফাইল ব্যবহার করছেন। হোয়াটসঅ্যাপে শেয়ারিং কাজ করাতে, আপনাকে ফাইলটি অনলাইনে হোস্ট করতে হবে (যেমন GitHub Pages)।");
+        } else {
+             alert("পরীক্ষার লিঙ্ক সফলভাবে ক্লাউডে তৈরি হয়েছে!"); 
+        }
+       
+    } catch (e) {
+        console.error("ডেটাবেসে পরীক্ষা সংরক্ষণ ব্যর্থ:", e);
+        alert(`ত্রুটি: পরীক্ষা সেভ করা সম্ভব হয়নি। কারণ: ${e.message}.`);
+    }
+}
+
+// শেয়ারিং ফাংশন
+function shareLink(platform){
+    const link=`${location.href.split("?")[0]}?id=${examID}`;
+    const message=`🚨 জরুরী পরীক্ষা: ${examTitle}\n\nপরীক্ষায় অংশ নিতে, এই লিঙ্কে ক্লিক করুন। সময়সীমা: ${durationMinutes} মিনিট।\n\n${link}`;
+    let url="";
+
+    if (location.protocol === 'file:') {
+        alert("গুরুত্বপূর্ণ: আপনি লোকাল ফাইল থেকে শেয়ার করার চেষ্টা করছেন। হোয়াটসঅ্যাপে ক্লিকযোগ্য লিঙ্ক পেতে, প্রথমে এই HTML ফাইলটি অনলাইনে হোস্ট করুন (GitHub Pages)।");
+        navigator.clipboard.writeText(message).then(() => {
+            alert("পরীক্ষার বার্তা কপি হয়েছে। ম্যানুয়ালি পেস্ট করুন।");
+        });
+        return;
+    }
+    
+    switch(platform){
+    case 'whatsapp': 
+        url=`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`; 
+        break;
+    case 'telegram': 
+        url=`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(message)}`; 
+        break;
+    case 'messenger': 
+        navigator.clipboard.writeText(message).then(() => {
+            alert("পরীক্ষার লিঙ্ক এবং বার্তা কপি হয়েছে। এখন মেসেঞ্জার খুলে পেস্ট করুন।");
+        }).catch(err => {
+            alert("দুঃখিত, কপি করা সম্ভব হয়নি। লিঙ্কটি নিজে কপি করুন:\n" + link);
+        });
+        return; 
+    }
+    
+    if (url) {
+        window.open(url,'_blank');
+    }
+}
+
+// পরীক্ষা শুরু
+function startExam(){
+    studentName=document.getElementById('studentName').value.trim();
+    studentClass=document.getElementById('studentClass').value;
+    studentMobile=document.getElementById('studentMobile').value.trim(); 
+
+    if(!studentName){alert("ছাত্র/ছাত্রীর নাম দিন!"); return;}
+    if(!studentClass || studentClass === ""){alert("আপনার শ্রেণী নির্বাচন করুন!"); return;}
+    if(!studentMobile){alert("মোবাইল নম্বর দিন!"); return;}
+
+    studentAnswers = questions.map(q => ({
+        qText: q.question, 
+        qOptions: q.options,
+        correctAnswerIndex: q.answer,
+        studentAnswerIndex: -1 
+    }));
+    
+    document.getElementById('student').style.display="none";
+    document.getElementById('quiz').style.display="block";
+    startTimer(durationMinutes);
+    showQuestion();
+}
+
+function startTimer(minutes){
+    let time=minutes*60;
+    const timerDisplay=document.getElementById('timerDisplay');
+    clearInterval(timerInterval);
+
+    timerInterval=setInterval(()=>{
+    const min=String(Math.floor(time/60)).padStart(2,'0');
+    const sec=String(time%60).padStart(2,'0');
+    timerDisplay.innerText=`সময়: ${min}:${sec}`;
+
+    if(time<=60){timerDisplay.style.color='var(--danger-color)';} 
+    if(time<=0){
+    clearInterval(timerInterval);
+    selectAnswer(-1); 
+    }
+    time--;
+    }, 1000);
+}
+
+function showQuestion(){
+    document.getElementById('examTitleDisplay').innerText=examTitle;
+    const qDiv=document.getElementById('questionText');
+    qDiv.innerText=`প্রশ্ন ${currentQ+1}/${questions.length}: ${questions[currentQ].question}`;
+
+    for(let i=0;i<4;i++){
+    document.getElementById('opt'+i).innerText=`${i+1}. ${questions[currentQ].options[i]}`;
+    }
+}
+
+function selectAnswer(optIndex){
+    if(currentQ < questions.length) {
+        studentAnswers[currentQ].studentAnswerIndex = optIndex;
+
+        if(optIndex !== -1 && optIndex === questions[currentQ].answer) { 
+            score++;
+        }
+    }
+    
+    currentQ++;
+    if(currentQ<questions.length) {
+        showQuestion();
+    } else {
+        showResult();
+    }
+}
+
+// ফলাফল সংরক্ষণ
+async function showResult(){
+    clearInterval(timerInterval);
+    document.getElementById('quiz').style.display="none";
+    
+    const rDiv=document.getElementById('scoreText');
+    rDiv.innerText=`${studentName}, আপনার পরীক্ষা সফলভাবে সম্পন্ন ও জমা দেওয়া হয়েছে।`; 
+
+    document.getElementById('result').style.display="block";
+
+    const resultData = {
+        examID: examID,
+        examTitle: examTitle,
+        studentName: studentName,
+        studentClass: studentClass,
+        studentMobile: studentMobile,
+        score: `${score}/${questions.length}`,
+        answers: studentAnswers, 
+        totalQuestions: questions.length, 
+        totalCorrect: score,             
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    
+    try {
+        if (!db) { throw new Error("Firebase DB not initialized."); }
+        await db.collection("results").add(resultData);
+        updateResultTable(); 
+    } catch (e) {
+        console.error("ফলাফল সংরক্ষণ ব্যর্থ:", e);
+        alert(`ত্রুটি: ফলাফল সেভ করা সম্ভব হয়নি। কারণ: ${e.message}.`);
+    }
+}
+
+// শিক্ষক প্যানেলে সম্পূর্ণ ফলাফল লোড করা
+async function updateResultTable(){
+    const table=document.getElementById('resultTable');
+    table.innerHTML=`<tr><th>পরীক্ষার নাম</th><th>ছাত্রের নাম</th><th>শ্রেণী</th><th>মোবাইল নং</th><th>স্কোর</th><th>বিস্তারিত</th></tr>`; 
+    
+    if (!db) return;
+    
+    try {
+        const snapshot = await db.collection("results").orderBy("timestamp", "desc").limit(50).get();
+        snapshot.forEach(doc => {
+            const res = doc.data();
+            const row=table.insertRow();
+            row.insertCell(0).innerText=res.examTitle;
+            row.insertCell(1).innerText=res.studentName;
+            row.insertCell(2).innerText=res.studentClass;
+            row.insertCell(3).innerText=res.studentMobile;
+            row.insertCell(4).innerText=res.score;
+            
+            const detailCell = row.insertCell(5);
+            const detailBtn = document.createElement('button');
+            detailBtn.innerText = 'বিস্তারিত দেখুন';
+            detailBtn.classList.add('detail-btn');
+            detailBtn.innerHTML = '<i class="fas fa-eye"></i> বিস্তারিত দেখুন';
+            detailBtn.onclick = () => showDetailedResult(res);
+            detailCell.appendChild(detailBtn);
+        });
+    } catch (e) {
+        console.error("ফলাফল লোড করতে ব্যর্থ:", e);
+    }
+}
+
+// *** রেজাল্ট শীট তৈরি ও প্রদর্শন ***
+function showDetailedResult(res) {
+    const modal = document.getElementById('detailModal');
+    const modalContentDiv = document.getElementById('modalContent');
+    const totalQuestions = res.totalQuestions || res.answers.length;
+    const scoreParts = res.score ? res.score.split('/') : ['0', totalQuestions];
+    const totalCorrect = parseInt(scoreParts[0]);
+    const totalIncorrect = totalQuestions - totalCorrect;
+    const date = res.timestamp ? new Date(res.timestamp.seconds * 1000).toLocaleString('bn-BD') : 'N/A';
+
+    // 1. রেজাল্ট শীট হেডার তৈরি
+    let html = `
+    <div id="resultSheet">
+        <div class="sheet-header">
+            <h3 style="margin-bottom: 5px; color: var(--primary-color);">MS EDUCATION</h3>
+            <h4 style="margin-top: 5px; color: var(--success-color);">${res.examTitle}</h4>
+            <p style="font-size: 14px; color: #666;">পরীক্ষা গ্রহণের তারিখ: ${date}</p>
+        </div>
+        
+        <div class="sheet-info" style="background: #f7f9fc; border: 1px solid #e0e0e0; padding: 15px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <p><i class="fas fa-user-graduate" style="color: var(--primary-color);"></i> <strong>ছাত্রের নাম:</strong> ${res.studentName}</p>
+            <p><i class="fas fa-school" style="color: var(--primary-color);"></i> <strong>শ্রেণী:</strong> ${res.studentClass}</p>
+            <p><i class="fas fa-phone-alt" style="color: var(--primary-color);"></i> <strong>মোবাইল নং:</strong> ${res.studentMobile}</p>
+            <hr style="margin: 10px 0; border-top: 1px dashed #ccc;">
+            <p><i class="fas fa-star" style="color: var(--secondary-color);"></i> <strong>মোট স্কোর:</strong> <span class="result">${res.score}</span></p>
+            <p><i class="fas fa-check" style="color: var(--success-color);"></i> <strong>সঠিক উত্তর:</strong> ${totalCorrect}</p>
+            <p><i class="fas fa-times" style="color: var(--danger-color);"></i> <strong>ভুল/উত্তর না দেওয়া:</strong> ${totalIncorrect}</p>
+        </div>
+        
+        <h4><i class="fas fa-clipboard-check"></i> উত্তরপত্রের বিস্তারিত</h4>
+        <hr>
+    `;
+
+    // 2. উত্তরপত্রের বিস্তারিত
+    res.answers.forEach((q, index) => {
+        const studentAnsIndex = q.studentAnswerIndex;
+        const correctAnsIndex = q.correctAnswerIndex;
+        const isCorrect = studentAnsIndex === correctAnsIndex;
+        
+        let borderStyle = isCorrect ? 'solid var(--success-color)' : 'solid var(--danger-color)';
+
+        html += `<div class="detail-item" style="border-left: 5px ${borderStyle}; background: #fff; padding: 12px; border-radius: 5px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div class="q-text">${index + 1}. ${q.qText}</div>`;
+        
+        // সমস্ত অপশন প্রদর্শন
+        q.qOptions.forEach((opt, optIndex) => {
+            let style = 'font-size: 15px; margin: 3px 0 0 10px;';
+            let label = '';
+            
+            if (optIndex === correctAnsIndex) {
+                style += ' color: var(--success-color); font-weight: 700;'; 
+                label = ' (সঠিক)';
+            }
+            if (optIndex === studentAnsIndex && !isCorrect) {
+                style += ' color: var(--danger-color); font-weight: 700; text-decoration: line-through;';
+                label = ' (ভুল উত্তর)';
+            } else if (optIndex === studentAnsIndex && isCorrect) {
+                style += ' color: var(--success-color); font-weight: 700;';
+            }
+            
+            html += `<p style="${style}">
+                ${optIndex + 1}. ${opt}${label}
+            </p>`;
+        });
+
+        if (studentAnsIndex === -1) {
+            html += `<p style="margin-top: 5px;" class="ans-incorrect">ছাত্রটি উত্তর দেয়নি।</p>`;
+        }
+        
+        html += `</div>`;
+    });
+    
+    html += `</div>`;
+    
+    modalContentDiv.innerHTML = html;
+    modal.style.display = "block";
+}
+
+function closeModal() {
+    document.getElementById('detailModal').style.display = "none";
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('detailModal');
+    if (event.target == modal) {
+        modal.style.display = "none";
+    }
+}
+
+// *** লোডিং এবং স্প্ল্যাশ স্ক্রিন ম্যানেজমেন্ট ***
+window.onload=function(){
+    document.getElementById('error-message').style.display="none"; 
+    document.getElementById('app').style.display="none"; 
+
+    document.getElementById('splashScreen').style.display="flex";
+
+    setTimeout(async () => {
+        document.getElementById('splashScreen').style.display="none";
+        
+        if (!db) {
+            document.getElementById('error-message').innerText = "ত্রুটি: ডেটাবেস সংযোগ ব্যর্থ হয়েছে। আপনার ইন্টারনেট সংযোগ এবং Firebase কনফিগারেশন চেক করুন।";
+            document.getElementById('error-message').style.display="block";
+            return;
+        }
+        
+        const params=new URLSearchParams(window.location.search);
+        
+        // যদি URL এ ID থাকে, তবে ছাত্র মোড
+        if(params.has('id')){
+            const id=params.get('id');
+            try {
+                const doc = await db.collection("exams").doc(id).get();
+                if(doc.exists){
+                    const examData = doc.data();
+                    
+                    document.getElementById('app').style.display="block";
+                    examTitle=examData.title;
+                    questions=examData.questions;
+                    durationMinutes=examData.duration;
+                    document.getElementById('student').style.display="block";
+                    
+                    // শিক্ষক প্যানেল লুকানো নিশ্চিত করা হলো
+                    document.getElementById('teacher').style.display="none"; 
+                } else {
+                    // পরীক্ষা না পাওয়া গেলে শুধু ত্রুটি দেখাবে
+                    document.getElementById('app').style.display="block";
+                    document.getElementById('error-message').style.display="block";
+                    document.getElementById('teacher').style.display="none"; 
+                }
+            } catch (e) {
+                console.error("পরীক্ষা লোড ব্যর্থ:", e);
+                // লোড ব্যর্থ হলেও শুধু ত্রুটি দেখাবে
+                document.getElementById('app').style.display="block";
+                document.getElementById('error-message').style.display="block";
+                document.getElementById('teacher').style.display="none"; 
+            }
+        } else {
+            // যদি URL এ ID না থাকে, তবে শিক্ষক মোড
+            document.getElementById('app').style.display="block";
+            document.getElementById('teacher').style.display="block";
+            updateResultTable();
+        }
+    }, 2500); 
+}
+</script>
+</body>
+</html>
