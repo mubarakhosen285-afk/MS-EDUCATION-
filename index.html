@@ -3,11 +3,875 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> 
-<title>MS EDUCATION Pro Online Exam App</title>
+<title>MS EDUCATION Pro Online Exam App - v4.3 (Final Fix)</title>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+Da+2:wght@400;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-<script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-firestore.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
+
+<script>
+    // ====================================================================
+    // !!! Firebase V8 Initialization - আপনার ডেটা দিয়ে আপডেট করা হলো !!!
+    // ====================================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyDmReTiRc0voblz_lUX_UpjL38a6YwC23A",
+      authDomain: "project1-64a93.firebaseapp.com",
+      projectId: "project1-64a93",
+      storageBucket: "project1-64a93.firebasestorage.app",
+      messagingSenderId: "198510257374",
+      appId: "1:198510257374:web:e6a1b9e74c539f5e120e4f",
+    };
+
+    let db;
+    try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+        console.log("Firebase initialized successfully (V8).");
+    } catch (e) {
+        console.error("Firebase Initialization Failed:", e);
+    }
+    // ====================================================================
+
+    // --- যোগাযোগের লিংক (আপনার দেওয়া তথ্য) ---
+    const CONTACT_LINKS = {
+        whatsapp: "https://wa.me/8801883109096", 
+        facebook: "https://www.facebook.com/mubarak.hosen.37625" 
+    };
+    
+    // --- গ্লোবাল ভেরিয়েবল ---
+    let questions=[], currentQ=0, score=0, studentName="", studentClass="", studentMobile="", studentGender="", examTitle="", examID="", durationMinutes=0;
+    let studentAnswers = []; 
+    let timerInterval;
+    let currentEditExamID = null; 
+
+    // প্যানেল ভেরিয়েবলগুলো এখন window.onload এর ভেতরে ডিক্লেয়ার করা হবে
+    let teacherPanel, studentStartPanel, quizPanel, resultPanel, errorMessageDiv, resultListPanel, savedExamsPanel, newExamPanel;
+
+    const sampleQuestions = [
+        "বাংলাদেশের রাজধানীর নাম কী?", "ভর এবং বেগের গুণফলকে কী বলে?", "সূর্য কোন দিকে ওঠে?",
+        "$(A+B)^2$-এর সূত্র কী?", "জীবদেহের ক্ষুদ্রতম একক কোনটি?", "আলোকবর্ষ কিসের একক?",
+        "কোন মুঘল সম্রাট তাজমহল নির্মাণ করেন?", "একটি বৃত্তের ব্যাসার্ধ $r$ হলে, ক্ষেত্রফল কত?",
+        "৪, ৫, ৬, ৭, ৮ এর গড় কত?", "জাতীয় ফুল কী?", "কোনটি কম্পিউটারের আউটপুট ডিভাইস?",
+    ];
+    let questionCounter = 1;
+
+
+    // --- ফাংশন: যোগাযোগের লিংক ইনজেক্ট করা ---
+    function injectContactLinks() {
+        const whatsappLink1 = document.getElementById('whatsappLink');
+        const facebookLink1 = document.getElementById('facebookLink');
+        const whatsappLink2 = document.getElementById('whatsappLink2');
+        const facebookLink2 = document.getElementById('facebookLink2');
+        // Mobile Link
+        const mobileLink1 = document.getElementById('mobileLink1');
+        const mobileLink2 = document.getElementById('mobileLink2');
+
+        if (whatsappLink1) whatsappLink1.href = CONTACT_LINKS.whatsapp;
+        if (facebookLink1) facebookLink1.href = CONTACT_LINKS.facebook;
+        if (whatsappLink2) whatsappLink2.href = CONTACT_LINKS.whatsapp;
+        if (facebookLink2) facebookLink2.href = CONTACT_LINKS.facebook;
+        
+        if (mobileLink1) mobileLink1.href = `tel:01883109096`;
+        if (mobileLink2) mobileLink2.href = `tel:01883109096`;
+    }
+
+    function getBaseUrl() {
+        const url = window.location.href.split('?')[0].split('#')[0];
+        if (url.endsWith('.html') || url.endsWith('.htm')) {
+            return url;
+        }
+        return url.endsWith('/') ? url : url + '/';
+    }
+
+    // ** শিক্ষক প্যানেল টগলিং **
+    let currentTeacherView = 'newExam'; 
+    window.toggleTeacherPanel = function(view) {
+        newExamPanel.style.display = 'none';
+        savedExamsPanel.style.display = 'none';
+        resultListPanel.style.display = 'none';
+
+        if (view === 'newExam') {
+            newExamPanel.style.display = 'block';
+            resetNewExamPanel(); 
+            currentTeacherView = 'newExam';
+        } else if (view === 'savedExams') {
+            savedExamsPanel.style.display = 'block';
+            loadSavedExams();
+            currentTeacherView = 'savedExams';
+        } else if (view === 'results') {
+            resultListPanel.style.display = 'block';
+            updateResultTable();
+            currentTeacherView = 'results';
+        }
+    }
+
+    // ** নতুন পরীক্ষা প্যানেল রিসেট **
+    function resetNewExamPanel() {
+        currentEditExamID = null;
+        document.getElementById('examTitle').value = '';
+        document.getElementById('examDuration').value = '';
+        document.getElementById('examIdDisplay').style.display = 'none';
+        document.getElementById('examIdDisplay').innerText = '';
+        
+        const formsDiv = document.getElementById('questionForms');
+        formsDiv.innerHTML = '';
+        questionCounter = 1;
+        addQuestion(); 
+        
+        document.getElementById('saveOrUpdateExamBtn').style.display = 'block';
+        document.getElementById('generateLinkBtn').style.display = 'none';
+        document.getElementById('examLinkContainer').style.display = 'none';
+    }
+
+    // ** শিক্ষক প্যানেল ফাংশন: প্রশ্ন যোগ করা **
+    window.addQuestion = function(qText = '', opts = ['', '', '', ''], correctAns = '0'){
+        const formsDiv=document.getElementById('questionForms');
+        const newQContainer=document.createElement('div');
+        newQContainer.classList.add('question-container');
+        
+        const placeholderText = qText || (sampleQuestions[(questionCounter-1) % sampleQuestions.length] + ' (AI সাজেশন)');
+
+        newQContainer.innerHTML=`
+        <hr>
+        <div class="input-group"><input type="text" class="qText" placeholder="${placeholderText}" value="${qText}"></div>
+        <div class="input-group">
+        <input type="text" class="opt" placeholder="অপশন ১" value="${opts[0]}">
+        <input type="text" class="opt" placeholder="অপশন ২" value="${opts[1]}">
+        <input type="text" class="opt" placeholder="অপশন ৩" value="${opts[2]}">
+        <input type="text" class="opt" placeholder="অপশন ৪" value="${opts[3]}">
+        </div>
+        <div class="input-group">
+        <label>সঠিক উত্তর:</label>
+        <select class="correctAnswer">
+        <option value="0" ${correctAns == '0' ? 'selected' : ''}>অপশন ১</option>
+        <option value="1" ${correctAns == '1' ? 'selected' : ''}>অপশন ২</option>
+        <option value="2" ${correctAns == '2' ? 'selected' : ''}>অপশন ৩</option>
+        <option value="3" ${correctAns == '3' ? 'selected' : ''}>অপশন ৪</option>
+        </select>
+        </div>
+        `;
+        formsDiv.appendChild(newQContainer);
+        questionCounter++;
+    }
+
+    // ** পরীক্ষা সেভ/আপডেট (Firebase V8) **
+    window.saveExam = async function(shouldGenerateLink) {
+        examTitle = document.getElementById('examTitle').value.trim();
+        durationMinutes = parseInt(document.getElementById('examDuration').value.trim());
+
+        if (!examTitle) { alert("পরীক্ষার শিরোনাম দিন!"); return; }
+        if (isNaN(durationMinutes) || durationMinutes <= 0) { alert("সঠিক সময়সীমা দিন (মিনিটে)!"); return; }
+
+        questions = [];
+        const qTexts = document.getElementsByClassName('qText');
+        const optsAll = document.getElementsByClassName('opt');
+        const correctAll = document.getElementsByClassName('correctAnswer');
+        let optIndex = 0;
+
+        for (let i = 0; i < qTexts.length; i++) {
+            const q = qTexts[i].value.trim();
+            if (!q) { alert(`প্রশ্ন ${i + 1} পূরণ করুন!`); return; }
+            const options = [];
+            let allOptionsFilled = true;
+            for (let j = 0; j < 4; j++) {
+                const val = optsAll[optIndex].value.trim();
+                if (!val) {
+                    alert(`প্রশ্ন ${i + 1}-এর অপশন ${j + 1} পূরণ করুন!`);
+                    allOptionsFilled = false;
+                    break;
+                }
+                options.push(val);
+                optIndex++;
+            }
+            if (!allOptionsFilled) return;
+            questions.push({
+                question: q,
+                options: options,
+                answer: parseInt(correctAll[i].value)
+            });
+        }
+        if (questions.length === 0) {
+            alert("পরীক্ষার জন্য কমপক্ষে একটি প্রশ্ন তৈরি করুন!");
+            return;
+        }
+
+        if (!currentEditExamID) {
+            currentEditExamID = "PRO" + Math.random().toString(36).substr(2, 9).toUpperCase();
+            examID = currentEditExamID;
+        } else {
+            examID = currentEditExamID;
+        }
+
+        const examData = {
+            examID: examID,
+            title: examTitle,
+            duration: durationMinutes,
+            questions: questions,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp() // V8 serverTimestamp
+        };
+
+        try {
+            if (!db) { throw new Error("Firebase DB not initialized."); }
+
+            // V8: set() ব্যবহার করে ডেটা সেভ বা আপডেট করা
+            await db.collection("exams").doc(examID).set(examData, { merge: true });
+
+            if (shouldGenerateLink) {
+                generateExamLinkDisplay(examID, examTitle, durationMinutes);
+            } else {
+                document.getElementById('examIdDisplay').style.display = 'block';
+                document.getElementById('examIdDisplay').innerText = `পরীক্ষা ID: ${examID} | এটি আপডেট করা হয়েছে।`;
+                document.getElementById('saveOrUpdateExamBtn').style.display = 'none'; 
+                document.getElementById('generateLinkBtn').style.display = 'block'; 
+
+                alert(`"${examTitle}" পরীক্ষাটি সফলভাবে সংরক্ষিত/আপডেট হয়েছে!`);
+            }
+
+        } catch (e) {
+            console.error("ডেটাবেসে পরীক্ষা সংরক্ষণ/আপডেট ব্যর্থ:", e);
+            alert(`ত্রুটি: পরীক্ষা সেভ করা সম্ভব হয়নি। কারণ: ${e.message}.\n\nআপনি কি Firebase Rules পাবলিক করেছেন?`);
+        }
+    }
+
+
+    // লিঙ্ক তৈরি করার ফাংশন 
+    function generateExamLinkDisplay(examId, title, duration) {
+        const link = `${getBaseUrl()}?id=${examId}`;
+
+        document.getElementById('examLinkContainer').style.display = "block";
+        document.getElementById('examLink').innerHTML = `<strong>🔗 ছাত্রদের জন্য ক্লিক লিঙ্ক:</strong><br><a href="${link}" target="_blank">${link}</a>`;
+
+        examID = examId; 
+        examTitle = title;
+        durationMinutes = duration;
+
+        document.getElementById('saveOrUpdateExamBtn').style.display = 'none';
+        document.getElementById('generateLinkBtn').style.display = 'none';
+
+        alert("পরীক্ষার লিঙ্ক সফলভাবে তৈরি হয়েছে! নিচে লিঙ্কটি শেয়ার করুন।");
+    }
+
+
+    // উন্নত শেয়ারিং ফাংশন
+    window.shareLink = function(){
+        const link=`${getBaseUrl()}?id=${examID}`;
+        const message=`🚨 জরুরী পরীক্ষা: ${examTitle}\n\nপরীক্ষায় অংশ নিতে, এই লিঙ্কে ক্লিক করুন। সময়সীমা: ${durationMinutes} মিনিট।\n\n${link}`;
+        
+        if (navigator.share) {
+            navigator.share({
+                title: examTitle,
+                text: message,
+                url: link,
+            })
+            .catch((error) => {
+                console.log('Error sharing', error);
+                copyFallback(message, link); 
+            });
+        } else {
+            copyFallback(message, link);
+        }
+    }
+
+    // শেয়ারিং ব্যর্থ হলে কপি করার ফলব্যাক
+    function copyFallback(message, link) {
+        navigator.clipboard.writeText(message).then(() => {
+            alert(`সফলভাবে কপি হয়েছে! ✅\n\nপরীক্ষার বার্তাটি আপনার ক্লিপবোর্ডে কপি হয়েছে। এখন আপনি ম্যানুয়ালি হোয়াটসঅ্যাপ/মেসেঞ্জারে পেস্ট করুন।`);
+        }).catch(err => {
+            alert("দুঃখিত, কপি করা সম্ভব হয়নি। লিঙ্কটি নিজে কপি করুন:\n" + link);
+        });
+    }
+
+    // ** সংরক্ষিত পরীক্ষার তালিকা লোড (Firebase V8) **
+    async function loadSavedExams() {
+        const listDiv = document.getElementById('savedExamsList');
+        listDiv.innerHTML = '<p style="text-align: center; color: #666;"><i class="fas fa-spinner fa-spin"></i> লোড হচ্ছে...</p>';
+
+        if (!db) {
+            listDiv.innerHTML = '<p style="text-align: center; color: var(--danger-color);">Firebase সংযোগ ব্যর্থ।</p>';
+            return;
+        }
+
+        try {
+            // V8: collection().orderBy().limit().get() ব্যবহার করে ডেটা আনা
+            const snapshot = await db.collection("exams")
+                                     .orderBy("createdAt", "desc")
+                                     .limit(20)
+                                     .get();
+
+            let html = '';
+            if (snapshot.empty) {
+                html = '<p style="text-align: center; color: var(--danger-color); font-weight: 700;">এখনও কোনো পরীক্ষা তৈরি করা হয়নি।</p>';
+            } else {
+                snapshot.forEach(doc => {
+                    const exam = doc.data();
+                    const examId = doc.id;
+                    const link = `${getBaseUrl()}?id=${examId}`;
+                    const date = exam.createdAt ? new Date(exam.createdAt.seconds * 1000).toLocaleDateString('bn-BD') : 'N/A';
+                    
+                    html += `
+                        <div class="exam-item">
+                            <div class="exam-item-details">
+                                <strong>${exam.title}</strong> (${exam.duration} মি. | ${exam.questions.length} প্রশ্ন)
+                                <p style="font-size: 13px; margin: 2px 0; color: #666;">ID: ${examId} | তৈরি: ${date}</p>
+                            </div>
+                            <div class="exam-item-actions">
+                                <button class="exam-btn exam-load-btn" onclick="loadExamForEdit('${examId}')">
+                                    <i class="fas fa-edit"></i> লোড ও এডিট
+                                </button>
+                                <button class="exam-btn" onclick="copyExamLink('${link}', '${exam.title}', ${exam.duration})">
+                                    <i class="fas fa-external-link-alt"></i> লিঙ্ক নিন
+                                </button>
+                                <button class="exam-delete-btn exam-btn" onclick="deleteExam('${examId}', '${exam.title}')">
+                                    <i class="fas fa-trash-alt"></i> ডিলিট
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            listDiv.innerHTML = html;
+        } catch (e) {
+            console.error("সংরক্ষিত পরীক্ষা লোড করতে ব্যর্থ:", e);
+            listDiv.innerHTML = '<p style="text-align: center; color: var(--danger-color);">ফায়ারবেস থেকে ডেটা লোড করার সময় ত্রুটি।</p>';
+        }
+    }
+
+    // সংরক্ষিত পরীক্ষা ডিলিট করার ফাংশন (Firebase V8)
+    window.deleteExam = async function(examId, examTitle) {
+        if (!confirm(`আপনি কি নিশ্চিত? "${examTitle}" পরীক্ষাটি স্থায়ীভাবে মুছে যাবে। এটি মুছে দিলে ছাত্ররা আর এই পরীক্ষা দিতে পারবে না, তবে দেওয়া ফলাফলগুলি (results) থাকবে।`)) {
+            return;
+        }
+
+        try {
+            if (!db) { throw new Error("Firebase DB not initialized."); }
+            
+            // V8: doc().delete() ব্যবহার করে ডিলিট
+            await db.collection("exams").doc(examId).delete();
+            
+            alert(`"${examTitle}" পরীক্ষাটি সফলভাবে মুছে ফেলা হয়েছে।`);
+            loadSavedExams(); 
+            
+        } catch (e) {
+            console.error("পরীক্ষা ডিলিট ব্যর্থ:", e);
+            alert(`ডিলিট করা সম্ভব হয়নি। কারণ: ${e.message}`);
+        }
+    }
+
+
+    window.copyExamLink = function(link, title, duration) {
+        examID = link.split('?id=')[1]; 
+        examTitle = title;
+        durationMinutes = duration;
+        
+        shareLink();
+    }
+
+    // সংরক্ষিত পরীক্ষা লোড করে এডিট প্যানেলে দেখানোর ফাংশন (Firebase V8)
+    window.loadExamForEdit = async function(examId) {
+        try {
+            // V8: doc().get() ব্যবহার করে ডেটা আনা
+            const docSnap = await db.collection("exams").doc(examId).get();
+
+            if (!docSnap.exists) {
+                alert("পরীক্ষাটি ডেটাবেসে খুঁজে পাওয়া যায়নি!");
+                return;
+            }
+
+            const examData = docSnap.data();
+
+            toggleTeacherPanel('newExam');
+            currentEditExamID = examId;
+            
+            document.getElementById('examTitle').value = examData.title;
+            document.getElementById('examDuration').value = examData.duration;
+            document.getElementById('examIdDisplay').style.display = 'block';
+            document.getElementById('examIdDisplay').innerText = `আপনি এই পরীক্ষাটি এডিট করছেন (ID: ${examId})`;
+
+            const formsDiv = document.getElementById('questionForms');
+            formsDiv.innerHTML = '';
+            questionCounter = 1;
+
+            examData.questions.forEach(q => {
+                addQuestion(q.question, q.options, q.answer.toString());
+            });
+            
+            document.getElementById('saveOrUpdateExamBtn').style.display = 'block';
+            document.getElementById('generateLinkBtn').style.display = 'block'; 
+            document.getElementById('examLinkContainer').style.display = 'none';
+
+            alert(`"${examData.title}" পরীক্ষাটি সফলভাবে এডিটের জন্য লোড করা হয়েছে।`);
+
+        } catch (e) {
+            console.error("পরীক্ষা লোড ব্যর্থ:", e);
+            alert(`এডিটের জন্য পরীক্ষা লোড করা সম্ভব হয়নি। কারণ: ${e.message}`);
+        }
+    }
+
+
+    /**
+     * SHA256 হ্যাশ তৈরি করার ফাংশন
+     */
+    function createUniqueHash(name, mobile, examId) {
+        const cleanedMobile = mobile.replace(/[^0-9]/g, ''); 
+        const key = `${name.toLowerCase().trim()}::${cleanedMobile}::${examId}`;
+        
+        if (typeof sha256 !== 'undefined') {
+            return sha256(key);
+        }
+        return key.replace(/[^a-zA-Z0-9]/g, ''); 
+    }
+
+    // ** ছাত্র প্যানেল ফাংশন: পরীক্ষা শুরু **
+    window.startExam = async function(){
+        studentName=document.getElementById('studentName').value.trim();
+        studentGender=document.getElementById('studentGender').value; 
+        studentClass=document.getElementById('studentClass').value;
+        let studentMobileInput=document.getElementById('studentMobile').value.trim(); 
+
+        if(!studentName){alert("ছাত্র/ছাত্রীর নাম দিন!"); return;}
+        if(!studentClass || studentClass === ""){alert("আপনার শ্রেণী নির্বাচন করুন!"); return;}
+        
+        if(!studentMobileInput){alert("মোবাইল নম্বর দিন!"); return;}
+
+        const cleanedMobile = studentMobileInput.replace(/[^0-9]/g, ''); 
+        
+        if (cleanedMobile.length !== 11) {
+            alert("মোবাইল নম্বরটি অবশ্যই ১১-ডিজিট-এর হতে হবে।");
+            return;
+        }
+        
+        const validPrefixes = ['013', '014', '015', '016', '017', '018', '019'];
+        const prefix = cleanedMobile.substring(0, 3);
+
+        if (!validPrefixes.includes(prefix)) {
+            alert("মোবাইল নম্বরটি বাংলাদেশি অপারেটরের সিমের নম্বর হতে হবে (শুরু হতে হবে 013, 014, 015, 016, 017, 018, অথবা 019 দিয়ে)।");
+            return;
+        }
+        
+        studentMobile = cleanedMobile; 
+        const uniqueCheckID = createUniqueHash(studentName, studentMobile, examID);
+        
+        // ** স্টেপ ১: পরীক্ষা ডুপ্লিকেট চেক করা (Firebase V8) **
+        try {
+            if (!db) { throw new Error("Firebase DB not initialized."); }
+
+            // V8: doc().get() ব্যবহার করে পরীক্ষা চেক করা
+            const checkDoc = await db.collection("exam_checks").doc(uniqueCheckID).get();
+            if (checkDoc.exists) {
+                document.getElementById('examFormContent').style.display = 'none';
+                document.getElementById('examCompletedMessage').style.display = 'block';
+                injectContactLinks(); 
+                return;
+            }
+        } catch (e) {
+            console.error("পরীক্ষা চেক ব্যর্থ:", e);
+            alert("পরীক্ষা শুরু করা যাচ্ছে না। সংযোগের সমস্যা।");
+            return;
+        }
+
+        studentAnswers = questions.map(q => ({
+            qText: q.question, 
+            qOptions: q.options,
+            correctAnswerIndex: q.answer,
+            studentAnswerIndex: -1 
+        }));
+        
+        studentStartPanel.style.display="none";
+        quizPanel.style.display="block";
+        
+        score = 0; 
+        currentQ = 0; 
+        startTimer(durationMinutes);
+        showQuestion();
+    }
+
+
+    function startTimer(minutes){
+        let time=minutes*60;
+        const timerDisplay=document.getElementById('timerDisplay');
+        clearInterval(timerInterval);
+
+        timerInterval=setInterval(()=>{
+        const min=String(Math.floor(time/60)).padStart(2,'0');
+        const sec=String(time%60).padStart(2,'0');
+        timerDisplay.innerText=`সময়: ${min}:${sec}`;
+
+        if(time<=60){timerDisplay.style.color='var(--danger-color)';} 
+        if(time<=0){
+        clearInterval(timerInterval);
+        selectAnswer(-1); 
+        }
+        time--;
+        }, 1000);
+    }
+
+    function showQuestion(){
+        document.getElementById('examTitleDisplay').innerText=examTitle;
+        const qDiv=document.getElementById('questionText');
+        qDiv.innerText=`প্রশ্ন ${currentQ+1}/${questions.length}: ${questions[currentQ].question}`;
+
+        for(let i=0;i<4;i++){
+        document.getElementById('opt'+i).innerText=`${i+1}. ${questions[currentQ].options[i]}`;
+        }
+    }
+
+    window.selectAnswer = function(optIndex){
+        if(currentQ < questions.length) {
+            studentAnswers[currentQ].studentAnswerIndex = optIndex;
+
+            if(optIndex !== -1 && optIndex === questions[currentQ].answer) { 
+                score++;
+            }
+        }
+        
+        currentQ++;
+        if(currentQ<questions.length) {
+            showQuestion();
+        } else {
+            showResult();
+        }
+    }
+
+    // ** ফলাফল সেভ করা (Firebase V8) **
+    async function showResult(){
+        clearInterval(timerInterval);
+        quizPanel.style.display="none";
+        resultPanel.style.display="block";
+
+        const uniqueCheckID = createUniqueHash(studentName, studentMobile, examID);
+
+        injectContactLinks(); 
+
+        const resultData = {
+            examID: examID,
+            examTitle: examTitle,
+            studentName: studentName,
+            studentGender: studentGender, 
+            studentClass: studentClass,
+            studentMobile: studentMobile,
+            uniqueCheckID: uniqueCheckID, 
+            score: `${score}/${questions.length}`,
+            answers: studentAnswers, 
+            totalQuestions: questions.length, 
+            totalCorrect: score,             
+            timestamp: firebase.firestore.FieldValue.serverTimestamp() // V8 serverTimestamp
+        };
+        
+        try {
+            if (!db) { throw new Error("Firebase DB not initialized."); }
+            
+            // 1. ফলাফল সেভ করা (V8: add())
+            await db.collection("results").add(resultData);
+            
+            // 2. পরীক্ষা সম্পন্ন হওয়ার রেকর্ড সেভ করা (V8: doc().set())
+            await db.collection("exam_checks").doc(uniqueCheckID).set({ 
+                examID: examID,
+                studentName: studentName,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+        } catch (e) {
+            console.error("ফলাফল সংরক্ষণ ব্যর্থ:", e);
+        }
+    }
+
+
+    // ** রেজাল্ট প্যানেল লোড (Firebase V8) **
+    window.updateResultTable = async function(){
+        const table=document.getElementById('resultTable');
+        table.innerHTML=`<tr><th>পরীক্ষার নাম</th><th>ছাত্রের নাম</th><th>শ্রেণী</th><th>স্কোর</th><th>সময়</th><th>অ্যাকশন</th></tr>`; 
+        
+        if (!db) return;
+        
+        try {
+            // V8: collection().orderBy().limit().get() ব্যবহার করে ডেটা আনা
+            const snapshot = await db.collection("results")
+                                     .orderBy("timestamp", "desc")
+                                     .limit(50)
+                                     .get();
+
+            snapshot.forEach(docSnap => {
+                const res = docSnap.data();
+                const resultId = docSnap.id; 
+                const date = res.timestamp ? new Date(res.timestamp.seconds * 1000).toLocaleString('bn-BD', { hour: '2-digit', minute: '2-digit', year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
+                
+                const row=table.insertRow();
+                row.insertCell(0).innerText=res.examTitle;
+                row.insertCell(1).innerText=`${res.studentName} (${res.studentGender || 'N/A'})`; 
+                row.insertCell(2).innerText=res.studentClass;
+                row.insertCell(3).innerText=res.score;
+                row.insertCell(4).innerText=date;
+                
+                const actionCell = row.insertCell(5);
+                actionCell.classList.add('action-buttons');
+
+                const detailBtn = document.createElement('button');
+                detailBtn.innerText = 'বিস্তারিত';
+                detailBtn.classList.add('detail-btn');
+                detailBtn.innerHTML = '<i class="fas fa-eye"></i>';
+                detailBtn.onclick = () => showDetailedResult(res);
+                actionCell.appendChild(detailBtn);
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.innerText = 'ডিলিট';
+                deleteBtn.classList.add('result-delete-btn');
+                deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                deleteBtn.onclick = () => deleteSingleResult(resultId, res.studentName, res.examTitle, res.uniqueCheckID); 
+                actionCell.appendChild(deleteBtn);
+
+                row.cells[1].innerHTML += `<br><a href="tel:${res.studentMobile}" class="mobile-link">${res.studentMobile}</a>`;
+                
+            });
+        } catch (e) {
+            console.error("ফলাফল লোড করতে ব্যর্থ:", e);
+            alert("ফলাফল লোড করা যাচ্ছে না। Firebase Rules চেক করুন।");
+        }
+    }
+
+    // নির্দিষ্ট ছাত্রের একটি ফলাফল ডিলিট করার ফাংশন (Firebase V8)
+    window.deleteSingleResult = async function(resultId, studentName, examTitle, uniqueCheckID) {
+        if (!confirm(`আপনি কি নিশ্চিত? ছাত্র ${studentName} এর "${examTitle}" পরীক্ষার ফলাফলটি স্থায়ীভাবে মুছে যাবে। এটি মুছে দিলে ছাত্রটি আবার পরীক্ষা দেওয়ার সুযোগ পাবে।`)) {
+            return;
+        }
+        
+        try {
+            if (!db) { throw new Error("Firebase DB not initialized."); }
+            
+            // 1. ফলাফল (results) ডিলিট করা (V8: doc().delete())
+            await db.collection("results").doc(resultId).delete();
+            
+            // 2. পরীক্ষা সম্পন্ন হওয়ার রেকর্ড (exam_checks) ডিলিট করা (V8: doc().delete())
+            if (uniqueCheckID) {
+                await db.collection("exam_checks").doc(uniqueCheckID).delete();
+            }
+
+            alert(`${studentName} এর ফলাফল সফলভাবে মুছে ফেলা হয়েছে। ছাত্রটি এখন চাইলে আবার পরীক্ষা দিতে পারবে।`);
+            updateResultTable(); 
+            
+        } catch (e) {
+            console.error("ফলাফল ডিলিট ব্যর্থ:", e);
+            alert(`ডিলিট করা সম্ভব হয়নি। কারণ: ${e.message}`);
+        }
+    }
+
+
+    function showDetailedResult(res) {
+        const modal = document.getElementById('detailModal');
+        const modalContentDiv = document.getElementById('modalContent');
+        const totalQuestions = res.totalQuestions || res.answers.length;
+        const scoreParts = res.score ? res.score.split('/') : ['0', totalQuestions];
+        const totalCorrect = parseInt(scoreParts[0]);
+        const totalIncorrect = totalQuestions - totalCorrect;
+        const date = res.timestamp ? new Date(res.timestamp.seconds * 1000).toLocaleString('bn-BD') : 'N/A';
+
+        let html = `
+        <div id="resultSheet">
+            <div class="sheet-header">
+                <h3 style="margin-bottom: 5px; color: var(--primary-color);">MS EDUCATION</h3>
+                <h4 style="margin-top: 5px; color: var(--success-color);">${res.examTitle}</h4>
+                <p style="font-size: 14px; color: #666;">পরীক্ষা গ্রহণের তারিখ: ${date}</p>
+            </div>
+            
+            <div class="sheet-info" style="background: #f7f9fc; border: 1px solid #e0e0e0; padding: 15px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                <p><i class="fas fa-user-graduate" style="color: var(--primary-color);"></i> <strong>ছাত্রের নাম:</strong> ${res.studentName} (${res.studentGender || 'N/A'})</p>
+                <p><i class="fas fa-school" style="color: var(--primary-color);"></i> <strong>শ্রেণী:</strong> ${res.studentClass}</p>
+                <p><i class="fas fa-phone-alt" style="color: var(--primary-color);"></i> <strong>মোবাইল নং:</strong> <a href="tel:${res.studentMobile}" class="mobile-link">${res.studentMobile}</a></p>
+                <hr style="margin: 10px 0; border-top: 1px dashed #ccc;">
+                <p><i class="fas fa-star" style="color: var(--secondary-color);"></i> <strong>মোট স্কোর:</strong> <span class="result-score">${res.score}</span></p>
+                <p><i class="fas fa-check" style="color: var(--success-color);"></i> <strong>সঠিক উত্তর:</strong> ${totalCorrect}</p>
+                <p><i class="fas fa-times" style="color: var(--danger-color);"></i> <strong>ভুল/উত্তর না দেওয়া:</strong> ${totalIncorrect}</p>
+            </div>
+            
+            <h4><i class="fas fa-clipboard-check"></i> উত্তরপত্রের বিস্তারিত</h4>
+            <hr>
+        `;
+
+        res.answers.forEach((q, index) => {
+            const studentAnsIndex = q.studentAnswerIndex;
+            const correctAnsIndex = q.correctAnswerIndex;
+            const isCorrect = studentAnsIndex === correctAnsIndex;
+            
+            let borderStyle = isCorrect ? 'solid var(--success-color)' : 'solid var(--danger-color)';
+
+            html += `<div class="detail-item" style="border-left: 5px ${borderStyle}; background: #fff; padding: 12px; border-radius: 5px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div class="q-text"><strong>${index + 1}. ${q.qText}</strong></div>`;
+            
+            q.qOptions.forEach((opt, optIndex) => {
+                let style = 'font-size: 15px; margin: 3px 0 0 10px;';
+                let label = '';
+                
+                if (optIndex === correctAnsIndex) {
+                    style += ' color: var(--success-color); font-weight: 700;'; 
+                    label = ' (সঠিক)';
+                }
+                if (optIndex === studentAnsIndex && !isCorrect) {
+                    style += ' color: var(--danger-color); font-weight: 700; text-decoration: line-through;';
+                    label = ' (ভুল উত্তর)';
+                } else if (optIndex === studentAnsIndex && isCorrect) {
+                    style += ' color: var(--success-color); font-weight: 700;';
+                }
+                
+                html += `<p style="${style}">
+                    ${optIndex + 1}. ${opt}${label}
+                </p>`;
+            });
+
+            if (studentAnsIndex === -1) {
+                html += `<p style="margin-top: 5px;" class="ans-incorrect">ছাত্রটি উত্তর দেয়নি।</p>`;
+            }
+            
+            html += `</div>`;
+        });
+        
+        html += `</div>`;
+        
+        modalContentDiv.innerHTML = html;
+        modal.style.display = "block";
+    }
+
+    window.closeModal = function() {
+        document.getElementById('detailModal').style.display = "none";
+    }
+
+    // ** মোবাইল ব্যাক বাটন সাপোর্ট **
+    window.onpopstate = function(event) {
+        const modal = document.getElementById('detailModal');
+        const quiz = document.getElementById('quiz');
+        const studentStart = document.getElementById('studentStart');
+
+        if (modal.style.display === 'block') {
+            modal.style.display = 'none';
+            return; 
+        }
+        
+        if (quiz.style.display === 'block') {
+            if (confirm("আপনি কি পরীক্ষা বাতিল করতে চান? বাতিল করলে স্কোর জমা হবে না।")) {
+                clearInterval(timerInterval);
+                window.location.reload(); 
+            } else {
+            }
+            return;
+        } 
+        
+        if (studentStart.style.display === 'block') {
+            window.location.href = getBaseUrl();
+            return;
+        }
+        
+        if (teacherPanel.style.display === 'block' && currentTeacherView !== 'newExam') {
+            toggleTeacherPanel('newExam');
+            return;
+        }
+    };
+
+
+    // *** লোডিং এবং রাউটিং ম্যানেজমেন্ট (গুরুত্বপূর্ণ) ***
+    window.onload=function(){
+        // FINAL FIX: Cannot read properties of null সমস্যার সমাধান
+        const appContainer = document.getElementById('app');
+        teacherPanel = document.getElementById('teacher');
+        studentStartPanel = document.getElementById('studentStart');
+        quizPanel = document.getElementById('quiz');
+        resultPanel = document.getElementById('result');
+        errorMessageDiv = document.getElementById('default-message'); 
+        resultListPanel = document.getElementById('resultPanel');
+        savedExamsPanel = document.getElementById('savedExamsPanel');
+        newExamPanel = document.getElementById('newExamPanel');
+
+        errorMessageDiv.style.display="none"; 
+        appContainer.style.display="none"; 
+
+        document.getElementById('splashScreen').style.display="flex";
+
+        setTimeout(async () => {
+            document.getElementById('splashScreen').style.display="none";
+            appContainer.style.display="block";
+            
+            // Firebase সংযোগ পরীক্ষা
+            if (typeof firebase === 'undefined' || !db) {
+                document.getElementById('default-message').style.display="block";
+                appContainer.style.display="none"; 
+                document.getElementById('default-message').innerHTML = `
+                    <h2><i class="fas fa-exclamation-triangle"></i> সার্ভার সংযোগ ত্রুটি</h2>
+                    <p style="font-size: 18px; color: var(--danger-color);">ডেটাবেস সংযোগ ব্যর্থ হয়েছে। এটি ঠিক করার জন্য আপনাকে **Firebase Console-এ গিয়ে Firestore Database এবং Rules (নিরাপত্তার নিয়ম)** পাবলিক করে দিতে হবে।</p>
+                    <p style="font-size: 17px; line-height: 1.6; color: var(--primary-color);">অনুগ্রহ করে Firebase Rules এ যান এবং নিচের নিয়মটি বসিয়ে দিন:</p>
+                    <code style="display: block; background: #eee; padding: 10px; border-radius: 5px; margin-top: 10px; overflow-x: auto;">
+                        rules_version = '2';<br>
+                        service cloud.firestore {<br>
+                          &nbsp;&nbsp;match /databases/{database}/documents {<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;match /{document=**} {<br>
+                              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allow read, write: if true;<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                          &nbsp;&nbsp;}<br>
+                        }<br>
+                    </code>
+                    <hr style="margin-top: 30px;">
+                    <p style="font-size: 15px; color: #666; text-align: center;">**শিক্ষকদের জন্য:** শিক্ষক প্যানেলে প্রবেশ করুন</p>
+                `;
+                return;
+            }
+
+            injectContactLinks(); 
+            
+            const params=new URLSearchParams(window.location.search);
+            
+            // 1. ছাত্রের পরীক্ষা শুরু
+            if(params.has('id')){
+                const id=params.get('id');
+                examID = id;
+                try {
+                    // V8: doc().get() ব্যবহার করে পরীক্ষার ডেটা লোড করা
+                    const docSnap = await db.collection("exams").doc(id).get();
+                    
+                    if(docSnap.exists){
+                        const examData = docSnap.data();
+                        
+                        examTitle=examData.title;
+                        questions=examData.questions;
+                        durationMinutes=examData.duration;
+                        
+                        document.getElementById('studentExamTitleDisplay').innerHTML = `<i class="fas fa-file-alt"></i> ${examTitle}`;
+                        document.getElementById('durationDisplay').innerText = durationMinutes;
+
+                        studentStartPanel.style.display="block";
+                        
+                    } else {
+                        document.getElementById('default-message').style.display="block"; 
+                        appContainer.style.display="none";
+                        document.getElementById('default-message').innerHTML = `
+                            <h2><i class="fas fa-exclamation-circle"></i> দুঃখিত! এই পরীক্ষাটি পাওয়া যায়নি।</h2>
+                            <p style="font-size: 18px; color: var(--danger-color);">আপনি যে পরীক্ষার লিঙ্কে ক্লিক করেছেন, সেটি সম্ভবত মেয়াদ উত্তীর্ণ অথবা ভুল।</p>
+                            <hr>
+                            <p style="font-size: 15px; color: #666; text-align: center;">**শিক্ষার্থীদের জন্য:** অনুগ্রহ করে আপনার শিক্ষকের সাথে যোগাযোগ করে সঠিক লিঙ্কটি নিশ্চিত করুন।</p>
+                        `;
+                    }
+                } catch (e) {
+                    console.error("পরীক্ষা লোড ব্যর্থ:", e);
+                    document.getElementById('default-message').style.display="block";
+                    appContainer.style.display="none";
+                }
+            } 
+            // 2. শিক্ষক প্যানেল (ডিফল্ট)
+            else if (params.has('teacher') || !params.toString()) {
+                 teacherPanel.style.display="block"; 
+                 toggleTeacherPanel('newExam');
+                 // প্রথম প্রশ্নের placeholder যোগ করা
+                 const firstQInput = document.querySelector('#questionForms .qText');
+                 if (firstQInput && !firstQInput.value) {
+                    firstQInput.placeholder = sampleQuestions[0] + ' (AI সাজেশন)';
+                 }
+            }
+            // 3. কোনো আইডি নেই
+            else {
+                document.getElementById('default-message').style.display="block";
+                appContainer.style.display="none";
+            }
+
+        }, 2500); 
+    }
+</script>
 <style>
 /* -------------------- থিম এবং ব্যাকগ্রাউন্ড -------------------- */
 :root {
@@ -16,7 +880,7 @@
     --success-color: #00c853; /* সবুজ */
     --danger-color: #d32f2f; /* লাল */
     --info-color: #00bcd4; /* হালকা নীল */
-    --bg-gradient: linear-gradient(145deg, #1e3c72, #2a5298); /* প্রিমিয়াম গাঢ় গ্রেডিয়েন্ট */
+    --bg-gradient: linear-gradient(145deg, #1e3c72, #2a5298); 
     --card-bg: #ffffff;
     --text-color: #212121;
 }
@@ -88,7 +952,7 @@ button{
 button:hover{transform: translateY(-3px); box-shadow:0 8px 20px rgba(0,0,0,0.3);}
 button i { margin-right: 10px; font-size: 20px; }
 
-#teacher button:not(.share-btn):not(.utility-btn):not(.detail-btn){background:var(--success-color); color:white;}
+#teacher button:not(.share-btn):not(.utility-btn):not(.detail-btn):not(.exam-btn){background:var(--success-color); color:white;}
 #quiz .options button{background:var(--primary-color); color:white; margin-bottom: 12px;}
 #quiz .options button:hover{background:#0d3d8f;}
 
@@ -104,6 +968,35 @@ button i { margin-right: 10px; font-size: 20px; }
     color: white !important;
     margin-bottom: 10px;
 }
+.exam-btn {
+    background: #4CAF50; /* সবুজ */
+    color: white;
+    width: auto !important;
+    padding: 8px 15px !important;
+    margin: 5px;
+    font-size: 15px !important;
+}
+
+/* Exam Item Buttons */
+.exam-item-actions {
+    display: flex;
+    gap: 5px;
+    margin-left: 10px;
+}
+.exam-item-actions button {
+    margin: 0 !important;
+    padding: 6px 10px !important;
+    font-size: 14px !important;
+    width: auto !important;
+}
+.exam-delete-btn {
+    background: var(--danger-color) !important;
+}
+.exam-load-btn {
+    background: var(--secondary-color) !important;
+    color: var(--text-color) !important;
+}
+
 /* -------------------- টেবিল এবং রেজাল্ট -------------------- */
 .result{text-align:center; font-size:26px; margin-top:30px; font-weight: 800; color: var(--danger-color);}
 .table-container {
@@ -117,44 +1010,75 @@ table{width:100%; border-collapse:collapse; margin-top:0;}
 table, th, td{border:1px solid #ddd;}
 th, td{padding:10px; text-align:center; font-size: 14px;}
 th{background:var(--primary-color); color:white; position: sticky; top: 0; z-index: 10;} 
-td button.detail-btn { 
-    background: var(--secondary-color); 
-    color: var(--text-color); 
+td button.detail-btn, td .action-buttons button { 
     width: auto !important; 
     padding: 6px 10px !important; 
-    margin: 0; 
+    margin: 3px 2px !important; 
     font-size: 13px !important;
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     border-radius: 5px;
 }
-/* Modal Styles */
-.modal { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.7); }
-.modal-content { 
-    background-color: var(--card-bg); margin: 5% auto; padding: 25px; border-radius: 15px; 
-    width: 90%; max-width: 700px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+td button.detail-btn { 
+    background: var(--secondary-color); 
+    color: var(--text-color); 
 }
-.close { color: #aaa; float: right; font-size: 32px; font-weight: bold; }
+.result-delete-btn {
+    background: var(--danger-color);
+    color: white;
+}
+
+/* Mobile Link Style */
+.mobile-link {
+    color: var(--primary-color);
+    font-weight: bold;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+/* Modal Styles (ফুলস্ক্রিন মডাল) */
+.modal { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: var(--card-bg); }
+.modal-content { 
+    background-color: var(--card-bg); margin: 0; padding: 25px; border-radius: 0; 
+    width: 100%; height: 100%; overflow-y: auto; box-shadow: none;
+}
+.close { color: #aaa; position: fixed; top: 15px; right: 25px; font-size: 32px; font-weight: bold; background: white; border-radius: 50%; width: 40px; height: 40px; line-height: 40px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 10001; }
 .close:hover, .close:focus { color: #000; text-decoration: none; cursor: pointer; }
 .sheet-header h3 { color: var(--primary-color); border-bottom: 2px dashed var(--secondary-color); padding-bottom: 10px; margin-bottom: 5px; }
 .sheet-info p { margin: 5px 0; font-size: 16px; }
 .ans-correct { color: var(--success-color); font-weight: bold; }
 .ans-incorrect { color: var(--danger-color); font-weight: bold; }
 .result-score { font-size:26px; font-weight: 800; color: var(--danger-color); }
+
+/* সংরক্ষিত পরীক্ষার তালিকা স্টাইল */
+#savedExamsList {
+    margin-top: 15px;
+    padding: 10px;
+    border: 1px solid var(--primary-color);
+    border-radius: 8px;
+    background: #f0f8ff;
+}
+.exam-item {
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin-bottom: 8px;
+    border-radius: 5px;
+    background: #ffffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.exam-item-details strong {
+    color: var(--primary-color);
+    font-size: 16px;
+}
 /* Print Style */
 @media print {
     body * { visibility: hidden; }
     .modal, .modal * { visibility: visible; }
     .modal { position: absolute; left: 0; top: 0; width: 100%; margin: 0; }
-    .close, #printBtn, .utility-btn, .detail-btn, .share-btn { display: none !important; }
+    .close, #printBtn, .utility-btn, .detail-btn, .share-btn, #savedExams, #toggleResultBtn, .exam-item-actions, .action-buttons { display: none !important; }
     .modal-content { margin: 0; width: 100%; box-shadow: none; border: none; padding: 0; }
     #resultSheet { border: none; }
-}
-/* -------------------- SPLASH/INTRO ANIMATION -------------------- */
-#splashScreen {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: var(--bg-gradient); display: flex;
-    justify-content: center; align-items: center; flex-direction: column;
-    z-index: 9999; color: white; font-family: 'Baloo Da 2', sans-serif;
 }
 .splash-title {
     font-size: 60px; font-weight: 800; margin-bottom: 20px; opacity: 0;
@@ -189,6 +1113,27 @@ td button.detail-btn {
 .teacher-info {
     text-align: center; margin-bottom: 20px; font-size: 18px; color: #424242; font-weight: 700; line-height: 1.5;
 }
+
+/* পরীক্ষা সম্পন্ন বার্তা স্টাইল */
+#examCompletedMessage {
+    background: #fff3e0;
+    padding: 30px;
+    border-radius: 10px;
+    border: 2px solid var(--secondary-color);
+    text-align: center;
+    margin-top: 30px;
+}
+#examCompletedMessage h2 {
+    color: var(--danger-color);
+    border: none;
+    font-size: 28px;
+}
+
+/* সেভ ও আপডেট বাটন (নতুন) */
+#saveOrUpdateExamBtn {
+    background: #00bcd4; /* info-color */
+    color: white;
+}
 </style>
 </head>
 <body>
@@ -207,59 +1152,80 @@ td button.detail-btn {
     <i class="fas fa-mosque" style="color: var(--primary-color);"></i> আল হামরা নূরানী মাদরাসা
 </div>
 
-<button class="utility-btn" id="toggleResultBtn" onclick="toggleResultPanel()" style="margin-top: 0;"><i class="fas fa-poll-h"></i> পরীক্ষার ফলাফল দেখুন</button>
-<h2 style="margin-top: 25px;"><i class="fas fa-chalkboard-teacher"></i> শিক্ষক প্যানেল - নতুন পরীক্ষা তৈরি</h2>
-<div class="input-group">
-<input type="text" id="examTitle" placeholder="পরীক্ষার শিরোনাম লিখুন">
-</div>
-<div class="input-group">
-<input type="number" id="examDuration" placeholder="সময়সীমা দিন (মিনিটে)">
-</div>
-<p class="warning"><i class="fas fa-exclamation-triangle"></i> শেয়ারিং কাজ করাতে ফাইলটি অবশ্যই অনলাইনে হোস্ট করুন।</p>
-
-<div id="questionForms">
-<div class="question-container">
-<div class="input-group"><input type="text" class="qText" placeholder="প্রশ্ন লিখুন"></div>
-<div class="input-group">
-<input type="text" class="opt" placeholder="অপশন ১">
-<input type="text" class="opt" placeholder="অপশন ২">
-<input type="text" class="opt" placeholder="অপশন ৩">
-<input type="text" class="opt" placeholder="অপশন ৪">
-</div>
-<div class="input-group">
-<label>সঠিক উত্তর:</label>
-<select class="correctAnswer">
-<option value="0">অপশন ১</option>
-<option value="1">অপশন ২</option>
-<option value="2">অপশন ৩</option>
-<option value="3">অপশন ৪</option>
-</select>
-</div>
-</div>
-</div>
-<button id="addQuestionBtn" onclick="addQuestion()"><i class="fas fa-plus-circle"></i> আরও প্রশ্ন যোগ করুন</button>
-<button onclick="generateExamLink()"><i class="fas fa-link"></i> পরীক্ষার লিঙ্ক তৈরি করুন</button>
-
-<div id="examLinkContainer" style="display:none;">
-<div class="glow-title" style="font-size: 30px;">MS EDUCATION - পরীক্ষার লিঙ্ক</div>
-<div id="examLink" class="link-box"></div>
-
-<button class="share-btn" onclick="shareLink()"><i class="fas fa-share-alt"></i> পরীক্ষার লিঙ্ক শেয়ার করুন</button>
+<div style="display: flex; gap: 10px; margin-bottom: 10px;">
+    <button class="utility-btn" id="toggleNewExamBtn" onclick="toggleTeacherPanel('newExam')" style="margin-top: 0; flex-grow: 1; background: var(--success-color) !important;"><i class="fas fa-plus"></i> নতুন পরীক্ষা</button>
+    <button class="utility-btn" id="toggleSavedExamBtn" onclick="toggleTeacherPanel('savedExams')" style="margin-top: 0; flex-grow: 1; background: var(--info-color) !important;"><i class="fas fa-list-alt"></i> সংরক্ষিত পরীক্ষা</button>
+    <button class="utility-btn" id="toggleResultBtn" onclick="toggleTeacherPanel('results')" style="margin-top: 0; flex-grow: 1;"><i class="fas fa-poll-h"></i> ফলাফল দেখুন</button>
 </div>
 
-<div id="resultPanel" style="display:none; margin-top: 40px;">
+<div id="newExamPanel">
+    <h2 style="margin-top: 15px;"><i class="fas fa-chalkboard-teacher"></i> নতুন/সম্পাদনা পরীক্ষা তৈরি</h2>
+    <p id="examIdDisplay" style="text-align: center; color: var(--danger-color); font-weight: bold; margin-bottom: 10px; display: none;"></p>
+    
+    <div class="input-group">
+    <input type="text" id="examTitle" placeholder="পরীক্ষার শিরোনাম লিখুন">
+    </div>
+    <div class="input-group">
+    <input type="number" id="examDuration" placeholder="সময়সীমা দিন (মিনিটে)">
+    </div>
+    <p class="warning"><i class="fas fa-exclamation-triangle"></i> শেয়ারিং কাজ করাতে ফাইলটি অবশ্যই অনলাইনে হোস্ট করুন।</p>
+
+    <div id="questionForms">
+    <div class="question-container">
+    <div class="input-group"><input type="text" class="qText" placeholder="যেমন: বাংলাদেশের রাজধানীর নাম কী? (AI সাজেশন)"></div>
+    <div class="input-group">
+    <input type="text" class="opt" placeholder="অপশন ১">
+    <input type="text" class="opt" placeholder="অপশন ২">
+    <input type="text" class="opt" placeholder="অপশন ৩">
+    <input type="text" class="opt" placeholder="অপশন ৪">
+    </div>
+    <div class="input-group">
+    <label>সঠিক উত্তর:</label>
+    <select class="correctAnswer">
+    <option value="0">অপশন ১</option>
+    <option value="1">অপশন ২</option>
+    <option value="2">অপশন ৩</option>
+    <option value="3">অপশন ৪</option>
+    </select>
+    </div>
+    </div>
+    </div>
+    <button id="addQuestionBtn" onclick="addQuestion()"><i class="fas fa-plus-circle"></i> আরও প্রশ্ন যোগ করুন</button>
+    
+    <button id="saveOrUpdateExamBtn" onclick="saveExam(false)"><i class="fas fa-save"></i> সেভ করুন / আপডেট করুন</button>
+    
+    <button id="generateLinkBtn" onclick="saveExam(true)" style="display:none; background: var(--success-color);"><i class="fas fa-link"></i> পরীক্ষার লিঙ্ক তৈরি করুন</button>
+
+
+    <div id="examLinkContainer" style="display:none; margin-top: 20px;">
     <hr>
-    <h2 style="margin-top: 20px;"><i class="fas fa-poll-h"></i> পরীক্ষার ফলাফল তালিকা</h2>
+    <div class="glow-title" style="font-size: 30px;">পরীক্ষার লিঙ্ক</div>
+    <div id="examLink" class="link-box" style="word-wrap: break-word;"></div>
+
+    <button class="share-btn" onclick="shareLink()"><i class="fas fa-share-alt"></i> পরীক্ষার লিঙ্ক শেয়ার করুন</button>
+    </div>
+</div>
+
+<div id="savedExamsPanel" style="display:none;">
+    <h2 style="margin-top: 15px;"><i class="fas fa-clipboard-list"></i> সংরক্ষিত পরীক্ষার তালিকা</h2>
+    <p style="text-align: center; color: var(--primary-color); font-weight: 700;">যেকোনো পরীক্ষার **'লিঙ্ক নিন'** বোতামে ক্লিক করে এটি আবার ছাত্রদের সাথে শেয়ার করতে পারবেন।</p>
+    <div id="savedExamsList">
+        </div>
+</div>
+
+<div id="resultPanel" style="display:none;">
+    <h2 style="margin-top: 15px;"><i class="fas fa-poll-h"></i> পরীক্ষার ফলাফল তালিকা</h2>
     <button class="utility-btn" onclick="updateResultTable()" style="background: var(--success-color) !important; margin-top: 0;"><i class="fas fa-sync-alt"></i> রেজাল্ট রিফ্রেশ করুন</button>
 
     <div class="table-container">
         <table id="resultTable">
             <tr>
-                <th>পরীক্ষার নাম</th><th>ছাত্রের নাম</th><th>শ্রেণী</th><th>স্কোর</th><th>সময়</th><th>বিস্তারিত</th>
+                <th>পরীক্ষার নাম</th><th>ছাত্রের নাম</th><th>শ্রেণী</th><th>স্কোর</th><th>সময়</th><th>অ্যাকশন</th>
             </tr>
         </table>
     </div>
 </div>
+
 </div>
 
 <div id="studentStart" style="display:none;">
@@ -272,27 +1238,61 @@ td button.detail-btn {
 <p style="text-align: center; font-size: 18px; color: var(--primary-color); font-weight: 700;">সময়সীমা: <span id="durationDisplay"></span> মিনিট</p>
 <hr>
 
-<div class="input-group">
-<label class="mandatory-label">ছাত্র/ছাত্রীর নাম:</label>
-<input type="text" id="studentName" placeholder="আপনার নাম লিখুন">
+<div id="examFormContent">
+    <div class="input-group">
+    <label class="mandatory-label">ছাত্র/ছাত্রীর নাম:</label>
+    <input type="text" id="studentName" placeholder="আপনার নাম লিখুন">
+    </div>
+
+    <div class="input-group">
+    <label class="mandatory-label">আপনি:</label>
+    <select id="studentGender">
+    <option value="ছাত্র">ছাত্র</option>
+    <option value="ছাত্রী">ছাত্রী</option>
+    </select>
+    </div>
+
+    <div class="input-group">
+    <label class="mandatory-label">শ্রেণী (Class):</label>
+    <select id="studentClass">
+    <option value="">-- শ্রেণী নির্বাচন করুন --</option>
+    <script>
+        // ক্লাস অপশন যোগ করার জন্য এটি এখানে রাখলাম
+        for (let i = 1; i <= 12; i++) {
+            document.write(`<option value="Class ${i}">Class ${i}</option>`);
+        }
+    </script>
+    </select>
+    </div>
+    <div class="input-group">
+    <label class="mandatory-label">মোবাইল নম্বর:</label>
+    <input type="tel" id="studentMobile" placeholder="১১-ডিজিট মোবাইল নম্বর দিন (যেমন: 017xxxxxxxx)" maxlength="11" pattern="01[3-9][0-9]{8}" title="মোবাইল নম্বরটি অবশ্যই ১১-ডিজিট-এর হতে হবে এবং 013-019 দিয়ে শুরু হতে হবে।">
+    </div>
+    <p style="text-align: center; color: var(--danger-color); font-weight: bold;">⚠️ সতর্কতা: একবার শুরু করলে সময় গণনা শুরু হবে।</p>
+    <button onclick="startExam()"><i class="fas fa-play"></i> পরীক্ষা শুরু করুন</button>
 </div>
-<div class="input-group">
-<label class="mandatory-label">শ্রেণী (Class):</label>
-<select id="studentClass">
-<option value="">-- শ্রেণী নির্বাচন করুন --</option>
-<script>
-    for (let i = 1; i <= 12; i++) {
-        document.write(`<option value="Class ${i}">Class ${i}</option>`);
-    }
-</script>
-</select>
-</div>
-<div class="input-group">
-<label class="mandatory-label">মোবাইল নম্বর:</label>
-<input type="tel" id="studentMobile" placeholder="মোবাইল নম্বর লিখুন (বাধ্যতামূলক)">
-</div>
-<p style="text-align: center; color: var(--danger-color); font-weight: bold;">⚠️ সতর্কতা: একবার শুরু করলে সময় গণনা শুরু হবে।</p>
-<button onclick="startExam()"><i class="fas fa-play"></i> পরীক্ষা শুরু করুন</button>
+
+<div id="examCompletedMessage" style="display: none;">
+    <h2><i class="fas fa-check-circle"></i> পরীক্ষা সম্পূর্ণ</h2>
+    <p style="font-size: 18px; color: var(--success-color); font-weight: bold; margin-top: 15px;">
+        আপনি এই পরীক্ষাটি ইতোমধ্যে একবার সম্পন্ন করেছেন।
+    </p>
+    <p style="font-size: 17px; color: var(--primary-color); margin-top: 10px;">
+        রেজাল্ট প্রকাশের জন্য অপেক্ষা করুন। ধন্যবাদ।
+    </p>
+
+    <div id="contactInfoBlock2" style="margin-top: 30px; border-top: 1px dashed #ccc; padding-top: 20px;">
+        <p style="font-size: 18px; color: var(--danger-color); font-weight: 700; text-align: center;">
+            <i class="fas fa-hand-point-right"></i> বিশেষ প্রয়োজনে যোগাযোগ করুন:
+        </p>
+        <p style="text-align: center; margin: 10px 0;">
+            <strong style="color: var(--primary-color);">মোবারাক হোসেন</strong><br>
+            <i class="fas fa-mobile-alt"></i> Mobile: <a href="tel:01883109096" id="mobileLink2" style="color: var(--primary-color); font-weight: bold;">01883109096</a><br>
+            <i class="fab fa-whatsapp" style="color: #25D366;"></i> WhatsApp: <a href="https://wa.me/8801883109096" target="_blank" id="whatsappLink2" style="color: #25D366; font-weight: bold;">যোগাযোগ করুন</a><br>
+            <i class="fab fa-facebook" style="color: #1877F2;"></i> Facebook: <a href="https://www.facebook.com/mubarak.hosen.37625" target="_blank" id="facebookLink2" style="color: #1877F2; font-weight: bold;">যোগাযোগ করুন</a>
+        </p>
+    </div>
+    </div>
 </div>
 
 <div id="quiz" style="display:none;">
@@ -309,21 +1309,33 @@ td button.detail-btn {
 </div>
 
 <div id="result" style="display:none;">
-<h2><i class="fas fa-check-circle"></i> পরীক্ষা সম্পন্ন</h2>
-<p style="text-align: center; font-size: 24px; color: var(--success-color); margin-top: 30px; font-weight: 800;">
-    সুন্দরভাবে প্রশ্নগুলোর উত্তর দেওয়ার জন্য আপনাকে ধন্যবাদ।
-</p>
-<p style="text-align: center; font-size: 18px; color: var(--primary-color); margin-top: 15px;">
-    আপনার ফলাফল খুব শীঘ্রি, শিক্ষক আপনাকে জানাবেন।
-</p>
-</div>
+    <h2><i class="fas fa-check-circle"></i> পরীক্ষা সম্পন্ন</h2>
+    <p style="text-align: center; font-size: 24px; color: var(--success-color); margin-top: 30px; font-weight: 800;">
+        সুন্দরভাবে প্রশ্নগুলোর উত্তর দেওয়ার জন্য আপনাকে ধন্যবাদ।
+    </p>
+    <p style="text-align: center; font-size: 18px; color: var(--primary-color); margin-top: 15px;">
+        আপনার ফলাফল খুব শীঘ্রি, শিক্ষক আপনাকে জানাবেন।
+    </p>
+
+    <div id="contactInfoBlock" style="margin-top: 30px; border-top: 1px dashed #ccc; padding-top: 20px;">
+        <p style="font-size: 18px; color: var(--danger-color); font-weight: 700; text-align: center;">
+            <i class="fas fa-hand-point-right"></i> বিশেষ প্রয়োজনে যোগাযোগ করুন:
+        </p>
+        <p style="text-align: center; margin: 10px 0;">
+            <strong style="color: var(--primary-color);">মোবারাক হোসেন</strong><br>
+            <i class="fas fa-mobile-alt"></i> Mobile: <a href="tel:01883109096" id="mobileLink1" style="color: var(--primary-color); font-weight: bold;">01883109096</a><br>
+            <i class="fab fa-whatsapp" style="color: #25D366;"></i> WhatsApp: <a href="https://wa.me/8801883109096" target="_blank" id="whatsappLink" style="color: #25D366; font-weight: bold;">যোগাযোগ করুন</a><br>
+            <i class="fab fa-facebook" style="color: #1877F2;"></i> Facebook: <a href="https://www.facebook.com/mubarak.hosen.37625" target="_blank" id="facebookLink" style="color: #1877F2; font-weight: bold;">যোগাযোগ করুন</a>
+        </p>
+    </div>
+    </div>
 </div>
 
 <div id="default-message" style="display:none;">
     <div class="glow-title" style="font-size: 40px; margin-bottom: 25px;">MS EDUCATION</div>
     <h2 style="border-bottom: none;"><i class="fas fa-graduation-cap"></i> অনলাইন পরীক্ষা পোর্টাল</h2>
     <p style="text-align: center; font-size: 18px; color: var(--text-color); margin-bottom: 20px; font-weight: 700;">প্রিয় শিক্ষার্থী, এটি পরীক্ষার মূল পাতা।</p>
-    <p style="font-size: 17px; line-height: 1.6;">পরীক্ষায় অংশ নিতে হলে আপনাকে অবশ্যই শিক্ষকের দেওয়া **সম্পূর্ণ পরীক্ষার লিঙ্কে** (যেটিতে `?id=` থাকবে) ক্লিক করে প্রবেশ করতে হবে।</p>
+    <p style="font-size: 17px; line-height: 1.6;">পরীক্ষায় অংশ নিতে হলে আপনাকে অবশ্যই শিক্ষকর দেওয়া **সম্পূর্ণ পরীক্ষার লিঙ্কে** (যেটিতে `?id=` থাকবে) ক্লিক করে প্রবেশ করতে হবে।</p>
     
     <div class="input-group" style="text-align: center; margin-top: 30px;">
         <p style="color: var(--danger-color); font-weight: 700;"><i class="fas fa-phone-volume"></i> কোনো সমস্যা হলে আপনার শিক্ষকের সাথে যোগাযোগ করুন।</p>
@@ -333,513 +1345,14 @@ td button.detail-btn {
     <p style="font-size: 15px; color: #666; text-align: center;">**শিক্ষকদের জন্য:** শিক্ষক প্যানেলে প্রবেশ করতে লিঙ্কে ম্যানুয়ালি `?teacher` যোগ করুন, অথবা **<a href="javascript:void(0);" onclick="window.location.href = window.location.href.split('?')[0] + '?teacher';" style="color: var(--primary-color); font-weight: bold;">এখানে ক্লিক করুন</a>**।</p>
 </div>
 
-
 <div id="detailModal" class="modal">
     <div class="modal-content">
-        <span class="close" onclick="closeModal()">&times;</span>
+        <span class="close" onclick="closeModal()"><i class="fas fa-times"></i></span>
         <div id="modalContent">
             </div>
         <button id="printBtn" onclick="window.print()" style="background: var(--info-color); color: white;"><i class="fas fa-print"></i> রেজাল্ট শীট প্রিন্ট/PDF করুন</button>
     </div>
 </div>
 
-<script>
-// ====================================================================
-// !!! Firebase কনফিগারেশন - আপনার দেওয়া ডেটা দিয়ে আপডেট করা হলো !!!
-// ====================================================================
-const firebaseConfig = {
-  apiKey: "AIzaSyDmReTiRc0voblz_lUX_UpjL38a6YwC23A",
-  authDomain: "project1-64a93.firebaseapp.com",
-  projectId: "project1-64a93",
-  storageBucket: "project1-64a93.firebasestorage.app",
-  messagingSenderId: "198510257374",
-  appId: "1:198510257374:web:e6a1b9e74c539f5e120e4f",
-  // measurementId: "G-CJ8HLJKHSH" - V8 SDK-এর জন্য প্রয়োজন নেই 
-};
-
-// Firebase Initialize (V8 Syntax)
-let db;
-try {
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-    }
-    db = firebase.firestore();
-} catch (e) {
-    console.error("Firebase Initialization Failed:", e);
-}
-// ====================================================================
-
-
-let questions=[], currentQ=0, score=0, studentName="", studentClass="", studentMobile="", examTitle="", examID="", durationMinutes=0;
-let studentAnswers = []; 
-let timerInterval;
-
-const appContainer = document.getElementById('app');
-const teacherPanel = document.getElementById('teacher');
-const studentStartPanel = document.getElementById('studentStart');
-const quizPanel = document.getElementById('quiz');
-const resultPanel = document.getElementById('result');
-const errorMessageDiv = document.getElementById('default-message'); 
-const resultListPanel = document.getElementById('resultPanel');
-const toggleResultBtn = document.getElementById('toggleResultBtn');
-
-/**
- * ইউআরএল পরিষ্কার করার জন্য কাস্টম ফাংশন 
- * GitHub Pages-এ ?id= বা ?teacher যোগ করতে এটি ব্যবহৃত হবে।
- */
-function getBaseUrl() {
-    const url = window.location.href.split('?')[0];
-    // যদি URL-এর শেষে .html থাকে, তাহলে সেটাই বেস URL
-    if (url.endsWith('.html') || url.endsWith('.htm')) {
-        return url;
-    }
-    // অন্যথায়, / শেষে যুক্ত করে রিটার্ন করুন
-    return url.endsWith('/') ? url : url + '/';
-}
-
-
-// শিক্ষক প্যানেল ফাংশন
-function addQuestion(){
-    const formsDiv=document.getElementById('questionForms');
-    const newQContainer=document.createElement('div');
-    newQContainer.classList.add('question-container');
-    newQContainer.innerHTML=`
-    <hr>
-    <div class="input-group"><input type="text" class="qText" placeholder="প্রশ্ন লিখুন"></div>
-    <div class="input-group">
-    <input type="text" class="opt" placeholder="অপশন ১">
-    <input type="text" class="opt" placeholder="অপশন ২">
-    <input type="text" class="opt" placeholder="অপশন ৩">
-    <input type="text" class="opt" placeholder="অপশন ৪">
-    </div>
-    <div class="input-group">
-    <label>সঠিক উত্তর:</label>
-    <select class="correctAnswer">
-    <option value="0">অপশন ১</option>
-    <option value="1">অপশন ২</option>
-    <option value="2">অপশন ৩</option>
-    <option value="3">অপশন ৪</option>
-    </select>
-    </div>
-    `;
-    formsDiv.appendChild(newQContainer);
-}
-
-// পরীক্ষার লিঙ্ক তৈরি (GitHub Pages ফ্রেন্ডলি)
-async function generateExamLink(){
-    examTitle=document.getElementById('examTitle').value.trim();
-    durationMinutes=parseInt(document.getElementById('examDuration').value.trim());
-
-    if(!examTitle){alert("পরীক্ষার শিরোনাম দিন!"); return;}
-    if(isNaN(durationMinutes) || durationMinutes <= 0){alert("সঠিক সময়সীমা দিন (মিনিটে)!"); return;}
-
-    questions=[];
-    const qTexts=document.getElementsByClassName('qText');
-    const optsAll=document.getElementsByClassName('opt');
-    const correctAll=document.getElementsByClassName('correctAnswer');
-    let optIndex=0;
-
-    for(let i=0;i<qTexts.length;i++){
-        const q=qTexts[i].value.trim();
-        if(!q){alert(`প্রশ্ন ${i+1} পূরণ করুন!`); return;}
-        const options=[];
-        let allOptionsFilled = true;
-        for(let j=0;j<4;j++){
-            const val=optsAll[optIndex].value.trim(); 
-            if(!val){
-                alert(`প্রশ্ন ${i+1}-এর অপশন ${j+1} পূরণ করুন!`); 
-                allOptionsFilled = false;
-                break;
-            }
-            options.push(val);
-            optIndex++; 
-        }
-        if (!allOptionsFilled) return; 
-        questions.push({
-            question: q, 
-            options: options, 
-            answer: parseInt(correctAll[i].value)
-        });
-    }
-    if (questions.length === 0) {
-        alert("পরীক্ষার জন্য কমপক্ষে একটি প্রশ্ন তৈরি করুন!");
-        return;
-    }
-
-    examID="PRO"+Math.random().toString(36).substr(2, 9).toUpperCase(); 
-
-    const examData = {
-        title: examTitle,
-        duration: durationMinutes,
-        questions: questions,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    
-    try {
-        if (!db) { throw new Error("Firebase DB not initialized."); }
-        await db.collection("exams").doc(examID).set(examData);
-        
-        // ছাত্রদের জন্য সরাসরি পরীক্ষার লিঙ্ক তৈরি (GitHub Pages-এর জন্য getBaseUrl ব্যবহার)
-        const link=`${getBaseUrl()}?id=${examID}`;
-        
-        document.getElementById('examLinkContainer').style.display="block";
-        document.getElementById('examLink').innerHTML=`<strong>🔗 ছাত্রদের জন্য ক্লিক লিঙ্ক:</strong><br><a href="${link}" target="_blank">${link}</a>`;
-        
-        alert("পরীক্ষার লিঙ্ক সফলভাবে ক্লাউডে তৈরি হয়েছে! নিচে লিঙ্কটি শেয়ার করুন।");
-       
-    } catch (e) {
-        console.error("ডেটাবেসে পরীক্ষা সংরক্ষণ ব্যর্থ:", e);
-        alert(`ত্রুটি: পরীক্ষা সেভ করা সম্ভব হয়নি। কারণ: ${e.message}.\n\nআপনি কি Firebase Rules পাবলিক করেছেন?`);
-    }
-}
-
-// উন্নত শেয়ারিং ফাংশন (নেটিভ শেয়ার মেনু ব্যবহার করে)
-function shareLink(){
-    const link=`${getBaseUrl()}?id=${examID}`;
-    const message=`🚨 জরুরী পরীক্ষা: ${examTitle}\n\nপরীক্ষায় অংশ নিতে, এই লিঙ্কে ক্লিক করুন। সময়সীমা: ${durationMinutes} মিনিট।\n\n${link}`;
-    
-    if (navigator.share) {
-        // নেটিভ শেয়ারিং সাপোর্ট করে
-        navigator.share({
-            title: examTitle,
-            text: message,
-            url: link,
-        })
-        .catch((error) => {
-            console.log('Error sharing', error);
-            copyFallback(message, link); // যদি শেয়ারিং বাতিল হয় বা ব্যর্থ হয়
-        });
-    } else {
-        // নেটিভ শেয়ারিং সাপোর্ট না করলে, ক্লিপবোর্ডে কপি করা
-        copyFallback(message, link);
-    }
-}
-
-// শেয়ারিং ব্যর্থ হলে বা সাপোর্ট না করলে কপি করার ফলব্যাক
-function copyFallback(message, link) {
-    navigator.clipboard.writeText(message).then(() => {
-        alert(`সফলভাবে কপি হয়েছে! ✅\n\nপরীক্ষার বার্তাটি আপনার ক্লিপবোর্ডে কপি হয়েছে। এখন আপনি ম্যানুয়ালি হোয়াটসঅ্যাপ/মেসেঞ্জারে পেস্ট করুন।`);
-    }).catch(err => {
-        alert("দুঃখিত, কপি করা সম্ভব হয়নি। লিঙ্কটি নিজে কপি করুন:\n" + link);
-    });
-}
-
-// ছাত্র প্যানেল ফাংশন
-function startExam(){
-    studentName=document.getElementById('studentName').value.trim();
-    studentClass=document.getElementById('studentClass').value;
-    studentMobile=document.getElementById('studentMobile').value.trim(); 
-
-    if(!studentName){alert("ছাত্র/ছাত্রীর নাম দিন!"); return;}
-    if(!studentClass || studentClass === ""){alert("আপনার শ্রেণী নির্বাচন করুন!"); return;}
-    if(!studentMobile){alert("মোবাইল নম্বর দিন!"); return;}
-
-    studentAnswers = questions.map(q => ({
-        qText: q.question, 
-        qOptions: q.options,
-        correctAnswerIndex: q.answer,
-        studentAnswerIndex: -1 
-    }));
-    
-    // ডিসপ্লে পরিবর্তন
-    studentStartPanel.style.display="none";
-    quizPanel.style.display="block";
-    
-    // কুইজ শুরু
-    score = 0; 
-    currentQ = 0; 
-    startTimer(durationMinutes);
-    showQuestion();
-}
-
-function startTimer(minutes){
-    let time=minutes*60;
-    const timerDisplay=document.getElementById('timerDisplay');
-    clearInterval(timerInterval);
-
-    timerInterval=setInterval(()=>{
-    const min=String(Math.floor(time/60)).padStart(2,'0');
-    const sec=String(time%60).padStart(2,'0');
-    timerDisplay.innerText=`সময়: ${min}:${sec}`;
-
-    if(time<=60){timerDisplay.style.color='var(--danger-color)';} 
-    if(time<=0){
-    clearInterval(timerInterval);
-    selectAnswer(-1); // সময় শেষ হলে উত্তর জমা
-    }
-    time--;
-    }, 1000);
-}
-
-function showQuestion(){
-    document.getElementById('examTitleDisplay').innerText=examTitle;
-    const qDiv=document.getElementById('questionText');
-    qDiv.innerText=`প্রশ্ন ${currentQ+1}/${questions.length}: ${questions[currentQ].question}`;
-
-    for(let i=0;i<4;i++){
-    document.getElementById('opt'+i).innerText=`${i+1}. ${questions[currentQ].options[i]}`;
-    }
-}
-
-function selectAnswer(optIndex){
-    if(currentQ < questions.length) {
-        studentAnswers[currentQ].studentAnswerIndex = optIndex;
-
-        if(optIndex !== -1 && optIndex === questions[currentQ].answer) { 
-            score++;
-        }
-    }
-    
-    currentQ++;
-    if(currentQ<questions.length) {
-        showQuestion();
-    } else {
-        showResult();
-    }
-}
-
-// ফলাফল সংরক্ষণ ও ছাত্রদের জন্য বার্তা প্রদর্শন
-async function showResult(){
-    clearInterval(timerInterval);
-    quizPanel.style.display="none";
-    
-    // ছাত্রদের স্কোর দেখানো হবে না, শুধু ধন্যবাদ বার্তা
-    resultPanel.style.display="block";
-
-    const resultData = {
-        examID: examID,
-        examTitle: examTitle,
-        studentName: studentName,
-        studentClass: studentClass,
-        studentMobile: studentMobile,
-        score: `${score}/${questions.length}`,
-        answers: studentAnswers, 
-        totalQuestions: questions.length, 
-        totalCorrect: score,             
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    
-    try {
-        if (!db) { throw new Error("Firebase DB not initialized."); }
-        // results কালেকশনে সেভ করা
-        await db.collection("results").add(resultData);
-    } catch (e) {
-        console.error("ফলাফল সংরক্ষণ ব্যর্থ:", e);
-        // যদি সেভ ব্যর্থ হয়, তবুও ছাত্রদের ধন্যবাদ বার্তাটি দেখানো হবে
-    }
-}
-
-
-// ** রেজাল্ট প্যানেল ম্যানেজমেন্ট **
-function toggleResultPanel() {
-    if (resultListPanel.style.display === 'block') {
-        resultListPanel.style.display = 'none';
-        toggleResultBtn.innerHTML = '<i class="fas fa-poll-h"></i> পরীক্ষার ফলাফল দেখুন';
-    } else {
-        resultListPanel.style.display = 'block';
-        toggleResultBtn.innerHTML = '<i class="fas fa-eye-slash"></i> ফলাফল লুকান';
-        updateResultTable(); // যখন প্যানেল খোলা হবে, তখন ডেটা লোড হবে
-    }
-}
-
-async function updateResultTable(){
-    const table=document.getElementById('resultTable');
-    table.innerHTML=`<tr><th>পরীক্ষার নাম</th><th>ছাত্রের নাম</th><th>শ্রেণী</th><th>স্কোর</th><th>সময়</th><th>বিস্তারিত</th></tr>`; 
-    
-    if (!db) return;
-    
-    try {
-        const snapshot = await db.collection("results").orderBy("timestamp", "desc").limit(50).get();
-        snapshot.forEach(doc => {
-            const res = doc.data();
-            const date = res.timestamp ? new Date(res.timestamp.seconds * 1000).toLocaleString('bn-BD', { hour: '2-digit', minute: '2-digit', year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
-            
-            const row=table.insertRow();
-            row.insertCell(0).innerText=res.examTitle;
-            row.insertCell(1).innerText=res.studentName;
-            row.insertCell(2).innerText=res.studentClass;
-            row.insertCell(3).innerText=res.score;
-            row.insertCell(4).innerText=date;
-            
-            const detailCell = row.insertCell(5);
-            const detailBtn = document.createElement('button');
-            detailBtn.innerText = 'বিস্তারিত দেখুন';
-            detailBtn.classList.add('detail-btn');
-            detailBtn.innerHTML = '<i class="fas fa-eye"></i> বিস্তারিত';
-            detailBtn.onclick = () => showDetailedResult(res);
-            detailCell.appendChild(detailBtn);
-        });
-    } catch (e) {
-        console.error("ফলাফল লোড করতে ব্যর্থ:", e);
-        alert("ফলাফল লোড করা যাচ্ছে না। Firebase Rules চেক করুন।");
-    }
-}
-
-function showDetailedResult(res) {
-    const modal = document.getElementById('detailModal');
-    const modalContentDiv = document.getElementById('modalContent');
-    const totalQuestions = res.totalQuestions || res.answers.length;
-    const scoreParts = res.score ? res.score.split('/') : ['0', totalQuestions];
-    const totalCorrect = parseInt(scoreParts[0]);
-    const totalIncorrect = totalQuestions - totalCorrect;
-    const date = res.timestamp ? new Date(res.timestamp.seconds * 1000).toLocaleString('bn-BD') : 'N/A';
-
-    let html = `
-    <div id="resultSheet">
-        <div class="sheet-header">
-            <h3 style="margin-bottom: 5px; color: var(--primary-color);">MS EDUCATION</h3>
-            <h4 style="margin-top: 5px; color: var(--success-color);">${res.examTitle}</h4>
-            <p style="font-size: 14px; color: #666;">পরীক্ষা গ্রহণের তারিখ: ${date}</p>
-        </div>
-        
-        <div class="sheet-info" style="background: #f7f9fc; border: 1px solid #e0e0e0; padding: 15px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-            <p><i class="fas fa-user-graduate" style="color: var(--primary-color);"></i> <strong>ছাত্রের নাম:</strong> ${res.studentName}</p>
-            <p><i class="fas fa-school" style="color: var(--primary-color);"></i> <strong>শ্রেণী:</strong> ${res.studentClass}</p>
-            <p><i class="fas fa-phone-alt" style="color: var(--primary-color);"></i> <strong>মোবাইল নং:</strong> ${res.studentMobile}</p>
-            <hr style="margin: 10px 0; border-top: 1px dashed #ccc;">
-            <p><i class="fas fa-star" style="color: var(--secondary-color);"></i> <strong>মোট স্কোর:</strong> <span class="result-score">${res.score}</span></p>
-            <p><i class="fas fa-check" style="color: var(--success-color);"></i> <strong>সঠিক উত্তর:</strong> ${totalCorrect}</p>
-            <p><i class="fas fa-times" style="color: var(--danger-color);"></i> <strong>ভুল/উত্তর না দেওয়া:</strong> ${totalIncorrect}</p>
-        </div>
-        
-        <h4><i class="fas fa-clipboard-check"></i> উত্তরপত্রের বিস্তারিত</h4>
-        <hr>
-    `;
-
-    res.answers.forEach((q, index) => {
-        const studentAnsIndex = q.studentAnswerIndex;
-        const correctAnsIndex = q.correctAnswerIndex;
-        const isCorrect = studentAnsIndex === correctAnsIndex;
-        
-        let borderStyle = isCorrect ? 'solid var(--success-color)' : 'solid var(--danger-color)';
-
-        html += `<div class="detail-item" style="border-left: 5px ${borderStyle}; background: #fff; padding: 12px; border-radius: 5px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <div class="q-text"><strong>${index + 1}. ${q.qText}</strong></div>`;
-        
-        q.qOptions.forEach((opt, optIndex) => {
-            let style = 'font-size: 15px; margin: 3px 0 0 10px;';
-            let label = '';
-            
-            if (optIndex === correctAnsIndex) {
-                style += ' color: var(--success-color); font-weight: 700;'; 
-                label = ' (সঠিক)';
-            }
-            if (optIndex === studentAnsIndex && !isCorrect) {
-                style += ' color: var(--danger-color); font-weight: 700; text-decoration: line-through;';
-                label = ' (ভুল উত্তর)';
-            } else if (optIndex === studentAnsIndex && isCorrect) {
-                style += ' color: var(--success-color); font-weight: 700;';
-            }
-            
-            html += `<p style="${style}">
-                ${optIndex + 1}. ${opt}${label}
-            </p>`;
-        });
-
-        if (studentAnsIndex === -1) {
-            html += `<p style="margin-top: 5px;" class="ans-incorrect">ছাত্রটি উত্তর দেয়নি।</p>`;
-        }
-        
-        html += `</div>`;
-    });
-    
-    html += `</div>`;
-    
-    modalContentDiv.innerHTML = html;
-    modal.style.display = "block";
-}
-
-function closeModal() {
-    document.getElementById('detailModal').style.display = "none";
-}
-
-window.onclick = function(event) {
-    const modal = document.getElementById('detailModal');
-    if (event.target == modal) {
-        modal.style.display = "none";
-    }
-}
-
-
-// *** লোডিং এবং রাউটিং ম্যানেজমেন্ট (গুরুত্বপূর্ণ) ***
-window.onload=function(){
-    errorMessageDiv.style.display="none"; 
-    appContainer.style.display="none"; 
-
-    document.getElementById('splashScreen').style.display="flex";
-
-    setTimeout(async () => {
-        document.getElementById('splashScreen').style.display="none";
-        appContainer.style.display="block";
-        
-        // Firebase সংযোগ পরীক্ষা
-        if (!db) {
-            document.getElementById('default-message').style.display="block";
-            document.getElementById('default-message').innerHTML = `
-                <h2 style="color: var(--danger-color);"><i class="fas fa-exclamation-triangle"></i> সার্ভার সংযোগ ত্রুটি</h2>
-                <p style="font-size: 18px; color: var(--text-color); margin-bottom: 20px;">ডেটাবেস সংযোগ ব্যর্থ হয়েছে। এটি ঠিক করার জন্য আপনাকে **Firebase Console-এ গিয়ে Firestore Database এবং Rules (নিরাপত্তার নিয়ম)** পাবলিক করে দিতে হবে।</p>
-                <p style="font-size: 17px; line-height: 1.6; color: var(--primary-color);">অনুগ্রহ করে Firebase Rules এ যান এবং নিচের নিয়মটি বসিয়ে দিন:</p>
-                <code style="display: block; background: #eee; padding: 10px; border-radius: 5px; margin-top: 10px;">
-                    rules_version = '2';<br>
-                    service cloud.firestore {<br>
-                      &nbsp;&nbsp;match /databases/{database}/documents {<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;match /{document=**} {<br>
-                          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allow read, write: if true;<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;}<br>
-                      &nbsp;&nbsp;}<br>
-                    }<br>
-                </code>
-                <hr style="margin-top: 30px;">
-                <p style="font-size: 15px; color: #666; text-align: center;">**শিক্ষকদের জন্য:** শিক্ষক প্যানেলে প্রবেশ করুন</p>
-            `;
-            return;
-        }
-
-
-        const params=new URLSearchParams(window.location.search);
-        
-        // 1. যদি URL এ ?id=PRO... থাকে (ছাত্রদের জন্য): পরীক্ষা শুরুর পেজ দেখাবে
-        if(params.has('id')){
-            const id=params.get('id');
-            examID = id;
-            try {
-                const doc = await db.collection("exams").doc(id).get();
-                if(doc.exists){
-                    const examData = doc.data();
-                    
-                    examTitle=examData.title;
-                    questions=examData.questions;
-                    durationMinutes=examData.duration;
-                    
-                    document.getElementById('studentExamTitleDisplay').innerHTML = `<i class="fas fa-file-alt"></i> ${examTitle}`;
-                    document.getElementById('durationDisplay').innerText = durationMinutes;
-
-                    studentStartPanel.style.display="block";
-                } else {
-                    document.getElementById('default-message').style.display="block"; 
-                    document.getElementById('default-message').innerHTML = `
-                        <h2><i class="fas fa-exclamation-circle"></i> দুঃখিত! এই পরীক্ষাটি পাওয়া যায়নি।</h2>
-                        <p style="font-size: 18px; color: var(--danger-color);">আপনি যে পরীক্ষার লিঙ্কে ক্লিক করেছেন, সেটি সম্ভবত মেয়াদ উত্তীর্ণ অথবা ভুল।</p>
-                        <hr>
-                        <p style="font-size: 15px; color: #666; text-align: center;">**শিক্ষার্থীদের জন্য:** অনুগ্রহ করে আপনার শিক্ষকের সাথে যোগাযোগ করে সঠিক লিঙ্কটি নিশ্চিত করুন।</p>
-                    `;
-                }
-            } catch (e) {
-                console.error("পরীক্ষা লোড ব্যর্থ:", e);
-                document.getElementById('default-message').style.display="block";
-            }
-        } 
-        // 2. যদি কোনো প্যারামিটার না থাকে OR যদি ?teacher থাকে: শিক্ষক প্যানেল দেখাবে (ডিফল্ট)
-        else {
-             teacherPanel.style.display="block"; 
-             if(params.has('teacher')) {
-                 // যদি ?teacher প্যারামিটার থাকে, তাহলে সেটি URL থেকে সরিয়ে পরিষ্কার লিঙ্ক তৈরি করতে পারেন (ঐচ্ছিক)
-                 window.history.pushState({}, document.title, getBaseUrl());
-             }
-        }
-
-    }, 2500); 
-}
-</script>
 </body>
 </html>
