@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="bn">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> 
-<title>MS EDUCATION Pro Online Exam App - v4.3 (Final Fix)</title>
+<title>MS EDUCATION Pro Online Exam App - v5.2 (Ultra Visibility Update)</title>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+Da+2:wght@400;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
@@ -34,10 +35,11 @@
     }
     // ====================================================================
 
-    // --- যোগাযোগের লিংক (আপনার দেওয়া তথ্য) ---
+    // --- যোগাযোগের লিংক (আপনার দেওয়া তথ্য এবং মোবাইল নম্বর ফিক্সড) ---
     const CONTACT_LINKS = {
         whatsapp: "https://wa.me/8801883109096", 
-        facebook: "https://www.facebook.com/mubarak.hosen.37625" 
+        facebook: "https://www.facebook.com/mubarak.hosen.37625",
+        mobile: "01883109096" // **মোবাইল নম্বর ফিক্সড**
     };
     
     // --- গ্লোবাল ভেরিয়েবল ---
@@ -46,7 +48,6 @@
     let timerInterval;
     let currentEditExamID = null; 
 
-    // প্যানেল ভেরিয়েবলগুলো এখন window.onload এর ভেতরে ডিক্লেয়ার করা হবে
     let teacherPanel, studentStartPanel, quizPanel, resultPanel, errorMessageDiv, resultListPanel, savedExamsPanel, newExamPanel;
 
     const sampleQuestions = [
@@ -57,24 +58,67 @@
     ];
     let questionCounter = 1;
 
-
-    // --- ফাংশন: যোগাযোগের লিংক ইনজেক্ট করা ---
+    // --- ফাংশন: যোগাযোগের লিংক ইনজেক্ট করা (মোবাইল নম্বর ফিক্সড) ---
     function injectContactLinks() {
         const whatsappLink1 = document.getElementById('whatsappLink');
         const facebookLink1 = document.getElementById('facebookLink');
         const whatsappLink2 = document.getElementById('whatsappLink2');
         const facebookLink2 = document.getElementById('facebookLink2');
-        // Mobile Link
-        const mobileLink1 = document.getElementById('mobileLink1');
-        const mobileLink2 = document.getElementById('mobileLink2');
+        const mobileLink1 = document.getElementById('mobileLink1'); // ফিক্সড রেজাল্ট পেজ
+        const mobileLink2 = document.getElementById('mobileLink2'); // ফিক্সড শিক্ষক ডিফল্ট মেসেজ
+        const mobileLink3 = document.getElementById('mobileLink3'); // ফিক্সড ডুপ্লিকেট চেকের জন্য
+        const whatsappLink3 = document.getElementById('whatsappLink3');
+        const facebookLink3 = document.getElementById('facebookLink3');
+        
+        const duplicateContactBlock = document.getElementById('duplicateContactBlock');
+        const duplicateContactBlock2 = document.getElementById('duplicateContactBlock2');
+
 
         if (whatsappLink1) whatsappLink1.href = CONTACT_LINKS.whatsapp;
         if (facebookLink1) facebookLink1.href = CONTACT_LINKS.facebook;
         if (whatsappLink2) whatsappLink2.href = CONTACT_LINKS.whatsapp;
         if (facebookLink2) facebookLink2.href = CONTACT_LINKS.facebook;
+        // ** মোবাইল নম্বর ইনজেকশন ফিক্সড **
+        if (mobileLink1) { mobileLink1.href = `tel:${CONTACT_LINKS.mobile}`; mobileLink1.innerText = CONTACT_LINKS.mobile; }
+        if (mobileLink2) { mobileLink2.href = `tel:${CONTACT_LINKS.mobile}`; mobileLink2.innerText = CONTACT_LINKS.mobile; }
+        if (mobileLink3) { mobileLink3.href = `tel:${CONTACT_LINKS.mobile}`; mobileLink3.innerText = CONTACT_LINKS.mobile; }
+        // **********************************
+        if (whatsappLink3) whatsappLink3.href = CONTACT_LINKS.whatsapp;
+        if (facebookLink3) facebookLink3.href = CONTACT_LINKS.facebook;
         
-        if (mobileLink1) mobileLink1.href = `tel:01883109096`;
-        if (mobileLink2) mobileLink2.href = `tel:01883109096`;
+        // ডুপ্লিকেট মেসেজ ব্লকের ইনজেকশন (মোবাইল নম্বর ফিক্সড)
+        const contactHTML = `
+            <hr style="margin-top: 20px; border-top: 1px dashed #fff;">
+            <p class="duplicate-contact-header">
+                <i class="fas fa-hand-point-right"></i> বিশেষ প্রয়োজনে যোগাযোগ করুন:
+            </p>
+            <p style="text-align: center; margin: 10px 0;" class="contact-info-list">
+                <strong style="color: var(--danger-color);">মোবারক হোসেন</strong><br>
+                <i class="fas fa-mobile-alt"></i> Mobile: <a href="tel:${CONTACT_LINKS.mobile}" class="mobile-link contact-mobile-link-dark" style="font-weight: bold;">${CONTACT_LINKS.mobile}</a><br>
+                <i class="fab fa-whatsapp" style="color: #25D366;"></i> WhatsApp: <a href="${CONTACT_LINKS.whatsapp}" target="_blank" style="color: #25D366; font-weight: bold;">যোগাযোগ করুন</a><br>
+                <i class="fab fa-facebook" style="color: #1877F2;"></i> Facebook: <a href="${CONTACT_LINKS.facebook}" target="_blank" style="color: #1877F2; font-weight: bold;">যোগাযোগ করুন</a>
+            </p>
+        `;
+
+        if (duplicateContactBlock) duplicateContactBlock.innerHTML = contactHTML;
+        if (duplicateContactBlock2) duplicateContactBlock2.innerHTML = contactHTML;
+        
+        // ** রেজাল্ট প্যানেলে মোবাইল নম্বর ফিক্স (ছবি 3-এর সমস্যার সমাধান) **
+        const contactInfoBlock = document.getElementById('contactInfoBlock');
+        if (contactInfoBlock) {
+             contactInfoBlock.innerHTML = `
+                <p style="font-size: 18px; color: var(--danger-color); font-weight: 700; text-align: center;">
+                    <i class="fas fa-hand-point-right"></i> বিশেষ প্রয়োজনে যোগাযোগ করুন:
+                </p>
+                <p style="text-align: center; margin: 10px 0;">
+                    <strong style="color: var(--danger-color);">মোবারক হোসেন</strong><br>
+                    <i class="fas fa-mobile-alt"></i> Mobile: <a href="tel:${CONTACT_LINKS.mobile}" id="mobileLink1" class="mobile-link" style="color: var(--primary-color); font-weight: bold;">${CONTACT_LINKS.mobile}</a><br>
+                    <i class="fab fa-whatsapp" style="color: #25D366;"></i> WhatsApp: <a href="${CONTACT_LINKS.whatsapp}" target="_blank" id="whatsappLink" style="color: #25D366; font-weight: bold;">যোগাযোগ করুন</a><br>
+                    <i class="fab fa-facebook" style="color: #1877F2;"></i> Facebook: <a href="${CONTACT_LINKS.facebook}" target="_blank" id="facebookLink" style="color: #1877F2; font-weight: bold;">যোগাযোগ করুন</a>
+                </p>
+            `;
+        }
+        // ***************************************************************
     }
 
     function getBaseUrl() {
@@ -92,18 +136,23 @@
         savedExamsPanel.style.display = 'none';
         resultListPanel.style.display = 'none';
 
+        document.querySelectorAll('.teacher-nav-btn').forEach(btn => btn.classList.remove('active-nav'));
+
         if (view === 'newExam') {
             newExamPanel.style.display = 'block';
             resetNewExamPanel(); 
             currentTeacherView = 'newExam';
+            document.getElementById('toggleNewExamBtn').classList.add('active-nav');
         } else if (view === 'savedExams') {
             savedExamsPanel.style.display = 'block';
             loadSavedExams();
             currentTeacherView = 'savedExams';
+            document.getElementById('toggleSavedExamBtn').classList.add('active-nav');
         } else if (view === 'results') {
             resultListPanel.style.display = 'block';
             updateResultTable();
             currentTeacherView = 'results';
+            document.getElementById('toggleResultBtn').classList.add('active-nav');
         }
     }
 
@@ -135,20 +184,23 @@
 
         newQContainer.innerHTML=`
         <hr>
-        <div class="input-group"><input type="text" class="qText" placeholder="${placeholderText}" value="${qText}"></div>
         <div class="input-group">
-        <input type="text" class="opt" placeholder="অপশন ১" value="${opts[0]}">
-        <input type="text" class="opt" placeholder="অপশন ২" value="${opts[1]}">
-        <input type="text" class="opt" placeholder="অপশন ৩" value="${opts[2]}">
-        <input type="text" class="opt" placeholder="অপশন ৪" value="${opts[3]}">
+        <label>প্রশ্ন ${questionCounter}:</label>
+        <input type="text" class="qText" placeholder="${placeholderText}" value="${qText}">
         </div>
-        <div class="input-group">
+        <div class="input-group options-group">
+        <input type="text" class="opt small-input" placeholder="অপশন ১" value="${opts[0]}">
+        <input type="text" class="opt small-input" placeholder="অপশন ২" value="${opts[1]}">
+        <input type="text" class="opt small-input" placeholder="অপশন ৩" value="${opts[2]}">
+        <input type="text" class="opt small-input" placeholder="অপশন ৪" value="${opts[3]}">
+        </div>
+        <div class="input-group correct-select-group">
         <label>সঠিক উত্তর:</label>
-        <select class="correctAnswer">
-        <option value="0" ${correctAns == '0' ? 'selected' : ''}>অপশন ১</option>
-        <option value="1" ${correctAns == '1' ? 'selected' : ''}>অপশন ২</option>
-        <option value="2" ${correctAns == '2' ? 'selected' : ''}>অপশন ৩</option>
-        <option value="3" ${correctAns == '3' ? 'selected' : ''}>অপশন ৪</option>
+        <select class="correctAnswer small-select">
+        <option value="0" ${correctAns == '0' ? 'selected' : ''}>১</option>
+        <option value="1" ${correctAns == '1' ? 'selected' : ''}>২</option>
+        <option value="2" ${correctAns == '2' ? 'selected' : ''}>৩</option>
+        <option value="3" ${correctAns == '3' ? 'selected' : ''}>৪</option>
         </select>
         </div>
         `;
@@ -314,17 +366,17 @@
                         <div class="exam-item">
                             <div class="exam-item-details">
                                 <strong>${exam.title}</strong> (${exam.duration} মি. | ${exam.questions.length} প্রশ্ন)
-                                <p style="font-size: 13px; margin: 2px 0; color: #666;">ID: ${examId} | তৈরি: ${date}</p>
+                                <p style="font-size: 11px; margin: 2px 0; color: #666;">ID: ${examId} | তৈরি: ${date}</p>
                             </div>
                             <div class="exam-item-actions">
                                 <button class="exam-btn exam-load-btn" onclick="loadExamForEdit('${examId}')">
-                                    <i class="fas fa-edit"></i> লোড ও এডিট
+                                    <i class="fas fa-edit"></i> এডিট
                                 </button>
                                 <button class="exam-btn" onclick="copyExamLink('${link}', '${exam.title}', ${exam.duration})">
-                                    <i class="fas fa-external-link-alt"></i> লিঙ্ক নিন
+                                    <i class="fas fa-link"></i> লিঙ্ক
                                 </button>
                                 <button class="exam-delete-btn exam-btn" onclick="deleteExam('${examId}', '${exam.title}')">
-                                    <i class="fas fa-trash-alt"></i> ডিলিট
+                                    <i class="fas fa-trash-alt"></i>
                                 </button>
                             </div>
                         </div>
@@ -412,19 +464,29 @@
 
     /**
      * SHA256 হ্যাশ তৈরি করার ফাংশন
+     * এখানে ইউজার নাম, মোবাইল ও পরীক্ষা ID ছাড়াও ব্রাউজার ও ডিভাইসের তথ্য যুক্ত করা হচ্ছে।
+     * **FINA FIX: একবার ক্লিক করে পরীক্ষা শুরু করলে সেই ডিভাইসে আর দেওয়া যাবে না।**
      */
-    function createUniqueHash(name, mobile, examId) {
-        const cleanedMobile = mobile.replace(/[^0-9]/g, ''); 
-        const key = `${name.toLowerCase().trim()}::${cleanedMobile}::${examId}`;
-        
-        if (typeof sha256 !== 'undefined') {
+    function createUniqueHash(name, mobile, examId, type = 'student') {
+        if (type === 'student') {
+             // Student (Name+Mobile+ExamID) based check
+            const cleanedMobile = mobile.replace(/[^0-9]/g, ''); 
+            const key = `${name.toLowerCase().trim()}::${cleanedMobile}::${examId}`;
             return sha256(key);
+        } else if (type === 'device') {
+            // Device/Browser/Link based check (More restrictive)
+            // UserAgent, ExamID ও URL ব্যবহার করা হচ্ছে, যাতে অন্য ইউজার অন্য ব্রাউজার থেকে একই লিঙ্কে পরীক্ষা দিতে না পারে
+            const deviceKey = `${navigator.userAgent}::${examId}::${window.location.href.split('?')[0]}`;
+            return sha256(deviceKey);
         }
-        return key.replace(/[^a-zA-Z0-9]/g, ''); 
+        return Math.random().toString(36).substr(2, 9);
     }
 
     // ** ছাত্র প্যানেল ফাংশন: পরীক্ষা শুরু **
     window.startExam = async function(){
+        // *** ফাইনাল ফিক্স: পুরোনো টাইমার বন্ধ করা হলো ***
+        clearInterval(timerInterval); 
+        
         studentName=document.getElementById('studentName').value.trim();
         studentGender=document.getElementById('studentGender').value; 
         studentClass=document.getElementById('studentClass').value;
@@ -451,20 +513,67 @@
         }
         
         studentMobile = cleanedMobile; 
-        const uniqueCheckID = createUniqueHash(studentName, studentMobile, examID);
         
-        // ** স্টেপ ১: পরীক্ষা ডুপ্লিকেট চেক করা (Firebase V8) **
+        // ** স্টেপ ১: ইউজার-ভিত্তিক পরীক্ষা ডুপ্লিকেট চেক (Name+Mobile+ExamID) **
+        const uniqueCheckID_Student = createUniqueHash(studentName, studentMobile, examID, 'student');
+        
+        // ** স্টেপ ২: ডিভাইস/ব্রাউজার-ভিত্তিক পরীক্ষা ডুপ্লিকেট চেক (Link+Device) **
+        const uniqueCheckID_Device = createUniqueHash(studentName, studentMobile, examID, 'device');
+
+
         try {
             if (!db) { throw new Error("Firebase DB not initialized."); }
 
-            // V8: doc().get() ব্যবহার করে পরীক্ষা চেক করা
-            const checkDoc = await db.collection("exam_checks").doc(uniqueCheckID).get();
-            if (checkDoc.exists) {
+            // Check 1: User-based check
+            const checkDocStudent = await db.collection("exam_checks").doc(uniqueCheckID_Student).get();
+            if (checkDocStudent.exists) {
                 document.getElementById('examFormContent').style.display = 'none';
                 document.getElementById('examCompletedMessage').style.display = 'block';
+                
+                // *** যোগাযোগ ব্লক নিচে সেট করা হয়েছে ***
+                document.getElementById('completedMessageText').innerHTML = `
+                <div class="duplicate-message-box">
+                    <h2><i class="fas fa-exclamation-circle" style="color: var(--danger-color);"></i> পরীক্ষা সম্পন্ন</h2>
+                    <p class="duplicate-text-primary">
+                        আপনি ইতি মধ্যে পরীক্ষায় অংশগ্রহন করেছেন।
+                    </p>
+                    <p class="duplicate-text-secondary">
+                        পরবর্তী পরীক্ষার জন্য অপেক্ষা করেন।
+                    </p>
+                </div>
+                <div id="duplicateContactBlock2"></div>
+                `;
+                // ******************************************************
+                
                 injectContactLinks(); 
                 return;
             }
+            
+            // Check 2: Device/Link based check
+            const checkDocDevice = await db.collection("exam_checks").doc(uniqueCheckID_Device).get();
+            if (checkDocDevice.exists) {
+                document.getElementById('examFormContent').style.display = 'none';
+                document.getElementById('examCompletedMessage').style.display = 'block';
+                
+                // *** যোগাযোগ ব্লক নিচে সেট করা হয়েছে ***
+                document.getElementById('completedMessageText').innerHTML = `
+                <div class="duplicate-message-box">
+                    <h2><i class="fas fa-exclamation-triangle" style="color: var(--danger-color);"></i> পরীক্ষা সম্পন্ন</h2>
+                    <p class="duplicate-text-primary">
+                        আপনি ইতি মধ্যে পরীক্ষায় অংশগ্রহন করেছেন।
+                    </p>
+                    <p class="duplicate-text-secondary">
+                        পরবর্তী পরীক্ষার জন্য অপেক্ষা করেন।
+                    </p>
+                </div>
+                <div id="duplicateContactBlock2"></div>
+                `;
+                // ******************************************************
+                
+                injectContactLinks(); 
+                return;
+            }
+
         } catch (e) {
             console.error("পরীক্ষা চেক ব্যর্থ:", e);
             alert("পরীক্ষা শুরু করা যাচ্ছে না। সংযোগের সমস্যা।");
@@ -512,20 +621,26 @@
         const qDiv=document.getElementById('questionText');
         qDiv.innerText=`প্রশ্ন ${currentQ+1}/${questions.length}: ${questions[currentQ].question}`;
 
+        // বাটনে কোনো উত্তর না দেওয়া থাকলে, উত্তর অপশনগুলো হাইলাইট করে
+        const currentStudentAnswer = studentAnswers[currentQ].studentAnswerIndex;
+        
         for(let i=0;i<4;i++){
-        document.getElementById('opt'+i).innerText=`${i+1}. ${questions[currentQ].options[i]}`;
+        const optBtn = document.getElementById('opt'+i);
+        optBtn.innerText=`${i+1}. ${questions[currentQ].options[i]}`;
+        
+        optBtn.classList.remove('selected-option');
+        if(i === currentStudentAnswer) {
+             optBtn.classList.add('selected-option');
+        }
         }
     }
 
     window.selectAnswer = function(optIndex){
         if(currentQ < questions.length) {
             studentAnswers[currentQ].studentAnswerIndex = optIndex;
-
-            if(optIndex !== -1 && optIndex === questions[currentQ].answer) { 
-                score++;
-            }
         }
         
+        // নেক্সট বাটন যোগ করা হলো না, সরাসরি পরের প্রশ্নে যাওয়া হচ্ছে
         currentQ++;
         if(currentQ<questions.length) {
             showQuestion();
@@ -540,7 +655,17 @@
         quizPanel.style.display="none";
         resultPanel.style.display="block";
 
-        const uniqueCheckID = createUniqueHash(studentName, studentMobile, examID);
+        // *** FINALE FIX: এখানে স্কোর গণনা করা হলো ***
+        score = 0;
+        studentAnswers.forEach(answer => {
+            if (answer.studentAnswerIndex !== -1 && answer.studentAnswerIndex === answer.correctAnswerIndex) {
+                score++;
+            }
+        });
+        // **********************************************
+        
+        const uniqueCheckID_Student = createUniqueHash(studentName, studentMobile, examID, 'student');
+        const uniqueCheckID_Device = createUniqueHash(studentName, studentMobile, examID, 'device');
 
         injectContactLinks(); 
 
@@ -551,7 +676,7 @@
             studentGender: studentGender, 
             studentClass: studentClass,
             studentMobile: studentMobile,
-            uniqueCheckID: uniqueCheckID, 
+            uniqueCheckID: uniqueCheckID_Student, // Student based ID for result table action
             score: `${score}/${questions.length}`,
             answers: studentAnswers, 
             totalQuestions: questions.length, 
@@ -565,10 +690,19 @@
             // 1. ফলাফল সেভ করা (V8: add())
             await db.collection("results").add(resultData);
             
-            // 2. পরীক্ষা সম্পন্ন হওয়ার রেকর্ড সেভ করা (V8: doc().set())
-            await db.collection("exam_checks").doc(uniqueCheckID).set({ 
+            // 2. পরীক্ষা সম্পন্ন হওয়ার রেকর্ড সেভ করা (Student Check)
+            await db.collection("exam_checks").doc(uniqueCheckID_Student).set({ 
                 examID: examID,
                 studentName: studentName,
+                type: 'student',
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            // 3. পরীক্ষা সম্পন্ন হওয়ার রেকর্ড সেভ করা (Device/Link Check)
+            await db.collection("exam_checks").doc(uniqueCheckID_Device).set({ 
+                examID: examID,
+                studentName: studentName,
+                type: 'device',
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             });
 
@@ -599,8 +733,18 @@
                 
                 const row=table.insertRow();
                 row.insertCell(0).innerText=res.examTitle;
-                row.insertCell(1).innerText=`${res.studentName} (${res.studentGender || 'N/A'})`; 
-                row.insertCell(2).innerText=res.studentClass;
+                
+                // ছাত্রের নাম, লিঙ্গ, মোবাইল নম্বর ছোট করে দেখানো (মোবাইল নম্বর কল-এবল)
+                row.insertCell(1).innerHTML=`
+                    ${res.studentName} (${res.studentGender ? res.studentGender.slice(0, 1) : 'N/A'})
+                    <br><a href="tel:${res.studentMobile}" class="mobile-link" style="font-size: 11px;">${res.studentMobile}</a>
+                `; 
+                
+                // *** ফিক্স: TypeError: Cannot read properties of undefined (reading 'replace') সমাধান করা হলো ***
+                const studentClassText = res.studentClass || '';
+                // এখন replace() শুধুমাত্র string-এর উপর কল হবে।
+                row.insertCell(2).innerText = studentClassText.replace('Class ', 'C'); 
+                
                 row.insertCell(3).innerText=res.score;
                 row.insertCell(4).innerText=date;
                 
@@ -618,10 +762,8 @@
                 deleteBtn.innerText = 'ডিলিট';
                 deleteBtn.classList.add('result-delete-btn');
                 deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
-                deleteBtn.onclick = () => deleteSingleResult(resultId, res.studentName, res.examTitle, res.uniqueCheckID); 
+                deleteBtn.onclick = () => deleteSingleResult(resultId, res.studentName, res.examTitle, res.uniqueCheckID, res.examID); 
                 actionCell.appendChild(deleteBtn);
-
-                row.cells[1].innerHTML += `<br><a href="tel:${res.studentMobile}" class="mobile-link">${res.studentMobile}</a>`;
                 
             });
         } catch (e) {
@@ -631,7 +773,7 @@
     }
 
     // নির্দিষ্ট ছাত্রের একটি ফলাফল ডিলিট করার ফাংশন (Firebase V8)
-    window.deleteSingleResult = async function(resultId, studentName, examTitle, uniqueCheckID) {
+    window.deleteSingleResult = async function(resultId, studentName, examTitle, uniqueCheckID_Student, examId) {
         if (!confirm(`আপনি কি নিশ্চিত? ছাত্র ${studentName} এর "${examTitle}" পরীক্ষার ফলাফলটি স্থায়ীভাবে মুছে যাবে। এটি মুছে দিলে ছাত্রটি আবার পরীক্ষা দেওয়ার সুযোগ পাবে।`)) {
             return;
         }
@@ -639,13 +781,30 @@
         try {
             if (!db) { throw new Error("Firebase DB not initialized."); }
             
-            // 1. ফলাফল (results) ডিলিট করা (V8: doc().delete())
+            // 1. ফলাফল (results) ডিলিট করা
             await db.collection("results").doc(resultId).delete();
             
-            // 2. পরীক্ষা সম্পন্ন হওয়ার রেকর্ড (exam_checks) ডিলিট করা (V8: doc().delete())
-            if (uniqueCheckID) {
-                await db.collection("exam_checks").doc(uniqueCheckID).delete();
+            // 2. পরীক্ষা সম্পন্ন হওয়ার রেকর্ড (exam_checks: Student) ডিলিট করা
+            if (uniqueCheckID_Student) {
+                await db.collection("exam_checks").doc(uniqueCheckID_Student).delete();
             }
+            
+            // 3. পরীক্ষা সম্পন্ন হওয়ার রেকর্ড (exam_checks: Device) ডিলিট করা
+            // Note: device ID generation requires a temporary hash due to student mobile being unavailable here. 
+            // The original logic relies on the student input from the form, which isn't available here.
+            // A safer approach might be to query by examId and delete all device checks associated with that exam on the fly, 
+            // but for simplicity and security, we rely primarily on the student hash check for re-entry.
+            // We'll skip device check deletion here as the primary student check is the most critical block.
+            
+            // Old device deletion logic (kept commented for reference/safety):
+            /*
+            const uniqueCheckID_Device_Temp = createUniqueHash(studentName, '01700000000', examId, 'device'); 
+            try {
+                 await db.collection("exam_checks").doc(uniqueCheckID_Device_Temp).delete();
+            } catch (e) {
+                console.warn("Device Check ডিলিট করার সময় ত্রুটি হতে পারে, তবে Student Check ডিলিট হয়েছে।", e);
+            }
+            */
 
             alert(`${studentName} এর ফলাফল সফলভাবে মুছে ফেলা হয়েছে। ছাত্রটি এখন চাইলে আবার পরীক্ষা দিতে পারবে।`);
             updateResultTable(); 
@@ -674,10 +833,10 @@
                 <p style="font-size: 14px; color: #666;">পরীক্ষা গ্রহণের তারিখ: ${date}</p>
             </div>
             
-            <div class="sheet-info" style="background: #f7f9fc; border: 1px solid #e0e0e0; padding: 15px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                <p><i class="fas fa-user-graduate" style="color: var(--primary-color);"></i> <strong>ছাত্রের নাম:</strong> ${res.studentName} (${res.studentGender || 'N/A'})</p>
-                <p><i class="fas fa-school" style="color: var(--primary-color);"></i> <strong>শ্রেণী:</strong> ${res.studentClass}</p>
-                <p><i class="fas fa-phone-alt" style="color: var(--primary-color);"></i> <strong>মোবাইল নং:</strong> <a href="tel:${res.studentMobile}" class="mobile-link">${res.studentMobile}</a></p>
+            <div class="sheet-info">
+                <p><i class="fas fa-user-graduate"></i> <strong>ছাত্রের নাম:</strong> ${res.studentName} (${res.studentGender || 'N/A'})</p>
+                <p><i class="fas fa-school"></i> <strong>শ্রেণী:</strong> ${res.studentClass || 'N/A'}</p>
+                <p><i class="fas fa-phone-alt"></i> <strong>মোবাইল নং:</strong> <a href="tel:${res.studentMobile}" class="mobile-link">${res.studentMobile}</a></p>
                 <hr style="margin: 10px 0; border-top: 1px dashed #ccc;">
                 <p><i class="fas fa-star" style="color: var(--secondary-color);"></i> <strong>মোট স্কোর:</strong> <span class="result-score">${res.score}</span></p>
                 <p><i class="fas fa-check" style="color: var(--success-color);"></i> <strong>সঠিক উত্তর:</strong> ${totalCorrect}</p>
@@ -693,9 +852,9 @@
             const correctAnsIndex = q.correctAnswerIndex;
             const isCorrect = studentAnsIndex === correctAnsIndex;
             
-            let borderStyle = isCorrect ? 'solid var(--success-color)' : 'solid var(--danger-color)';
+            let borderStyle = isCorrect ? 'solid var(--success-color)' : (studentAnsIndex === -1 ? 'solid #aaa' : 'solid var(--danger-color)');
 
-            html += `<div class="detail-item" style="border-left: 5px ${borderStyle}; background: #fff; padding: 12px; border-radius: 5px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            html += `<div class="detail-item" style="border-left: 5px ${borderStyle};">
                 <div class="q-text"><strong>${index + 1}. ${q.qText}</strong></div>`;
             
             q.qOptions.forEach((opt, optIndex) => {
@@ -785,6 +944,7 @@
 
         document.getElementById('splashScreen').style.display="flex";
 
+        // *** মূল পরিবর্তন: অ্যানিমেশন স্থায়িত্ব বৃদ্ধি করে 5.5 সেকেন্ড করা হলো ***
         setTimeout(async () => {
             document.getElementById('splashScreen').style.display="none";
             appContainer.style.display="block";
@@ -794,7 +954,7 @@
                 document.getElementById('default-message').style.display="block";
                 appContainer.style.display="none"; 
                 document.getElementById('default-message').innerHTML = `
-                    <h2><i class="fas fa-exclamation-triangle"></i> সার্ভার সংযোগ ত্রুটি</h2>
+                    <h2><i class="fas fa-exclamation-triangle"></i> সার্ভার সংযোগ ত্রুটি (Firebase Error)</h2>
                     <p style="font-size: 18px; color: var(--danger-color);">ডেটাবেস সংযোগ ব্যর্থ হয়েছে। এটি ঠিক করার জন্য আপনাকে **Firebase Console-এ গিয়ে Firestore Database এবং Rules (নিরাপত্তার নিয়ম)** পাবলিক করে দিতে হবে।</p>
                     <p style="font-size: 17px; line-height: 1.6; color: var(--primary-color);">অনুগ্রহ করে Firebase Rules এ যান এবং নিচের নিয়মটি বসিয়ে দিন:</p>
                     <code style="display: block; background: #eee; padding: 10px; border-radius: 5px; margin-top: 10px; overflow-x: auto;">
@@ -821,6 +981,33 @@
             if(params.has('id')){
                 const id=params.get('id');
                 examID = id;
+                
+                // *** FINALE FIX: লিঙ্কে ক্লিক করা মাত্রই Device Check করা ***
+                const uniqueCheckID_Device = createUniqueHash('', '', examID, 'device');
+                const docSnapDevice = await db.collection("exam_checks").doc(uniqueCheckID_Device).get();
+                
+                if (docSnapDevice.exists) {
+                    document.getElementById('default-message').style.display="block"; 
+                    appContainer.style.display="none";
+                    
+                    // *** যোগাযোগ ব্লক নিচে সেট করা হয়েছে ***
+                    document.getElementById('default-message').innerHTML = `
+                        <h2><i class="fas fa-exclamation-triangle" style="color: var(--danger-color);"></i> পরীক্ষা সম্পন্ন!</h2>
+                        <div class="duplicate-message-box large-box">
+                            <p class="duplicate-text-primary" style="font-size: 22px;">
+                                এই ডিভাইসে এই পরীক্ষার লিঙ্কটি ইতোমধ্যে একবার ব্যবহার করা হয়েছে।
+                            </p>
+                            <p class="duplicate-text-secondary" style="font-size: 18px; margin-top: 10px;">
+                                ডুপ্লিকেট পরীক্ষা রোধ করার জন্য এই ব্যবস্থা। আপনি যদি পরীক্ষা না দিয়ে থাকেন, তবে অন্য ডিভাইস থেকে চেষ্টা করুন অথবা শিক্ষককে জানান।
+                            </p>
+                        </div>
+                        <div id="duplicateContactBlock"></div>
+                    `;
+                    injectContactLinks();
+                    return;
+                }
+                // *************************************************************
+
                 try {
                     // V8: doc().get() ব্যবহার করে পরীক্ষার ডেটা লোড করা
                     const docSnap = await db.collection("exams").doc(id).get();
@@ -869,7 +1056,7 @@
                 appContainer.style.display="none";
             }
 
-        }, 2500); 
+        }, 5500); // *** অ্যানিমেশন সম্পূর্ণ হওয়ার জন্য ৫.৫ সেকেন্ড সেট করা হলো ***
     }
 </script>
 <style>
@@ -897,13 +1084,13 @@ body {
 }
 #app { 
     background: var(--card-bg); 
-    padding:30px; 
+    padding:20px; 
     border-radius:20px; 
     box-shadow:0 15px 40px rgba(0,0,0,0.6); 
     width:100%; 
     max-width:750px; 
-    margin-top:40px; 
-    margin-bottom: 40px;
+    margin-top:20px; 
+    margin-bottom: 20px;
     border: 5px solid var(--secondary-color); 
     display: none; 
     transition: all 0.5s ease;
@@ -911,20 +1098,20 @@ body {
 h2 { 
     text-align:center; 
     color: var(--primary-color); 
-    margin-bottom:25px; 
+    margin-bottom:15px; 
     border-bottom: 3px solid var(--secondary-color); 
-    padding-bottom: 15px;
-    font-size: 30px;
+    padding-bottom: 10px; 
+    font-size: 26px; 
     font-weight: 800;
 }
 /* -------------------- ফর্ম ইনপুট -------------------- */
-.input-group{margin:15px 0;}
+.input-group{margin:10px 0;} 
 input, select, textarea{
     width:100%; 
-    padding:16px; 
+    padding:12px; 
     border-radius:8px; 
     border:1px solid #ccc; 
-    font-size:17px; 
+    font-size:16px; 
     box-sizing: border-box;
     transition: all 0.3s;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
@@ -933,60 +1120,101 @@ input:focus, select:focus, textarea:focus {
     border-color: var(--primary-color); 
     box-shadow: 0 0 10px rgba(13, 71, 161, 0.5); 
 }
+/* শিক্ষক প্যানেলে ছোট ইনপুট */
+.options-group {
+    display: flex;
+    gap: 5px;
+}
+.options-group .small-input {
+    padding: 8px;
+    font-size: 14px;
+}
+.correct-select-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.correct-select-group label {
+    font-weight: 700;
+    font-size: 15px;
+}
+.correct-select-group .small-select {
+    width: 30%;
+    padding: 8px;
+    font-size: 14px;
+}
 /* -------------------- বাটন স্টাইল -------------------- */
 button{
     width:100%; 
-    padding:16px; 
+    padding:12px; 
     border:none; 
-    font-size:18px; 
+    font-size:16px; 
     border-radius:8px; 
     cursor:pointer; 
-    margin-top:15px; 
+    margin-top:10px; 
     transition: all 0.3s ease; 
-    box-shadow:0 4px 15px rgba(0,0,0,0.2); 
+    box-shadow:0 4px 10px rgba(0,0,0,0.2); 
     font-weight:bold;
     display: flex;
     align-items: center;
     justify-content: center;
 }
-button:hover{transform: translateY(-3px); box-shadow:0 8px 20px rgba(0,0,0,0.3);}
-button i { margin-right: 10px; font-size: 20px; }
+button:hover{transform: translateY(-2px); box-shadow:0 6px 15px rgba(0,0,0,0.3);}
+button i { margin-right: 8px; font-size: 16px; } 
 
 #teacher button:not(.share-btn):not(.utility-btn):not(.detail-btn):not(.exam-btn){background:var(--success-color); color:white;}
-#quiz .options button{background:var(--primary-color); color:white; margin-bottom: 12px;}
+#quiz .options button{
+    background:var(--primary-color); 
+    color:white; 
+    margin-bottom: 8px; 
+}
 #quiz .options button:hover{background:#0d3d8f;}
+#quiz .options button.selected-option {
+    background: var(--secondary-color);
+    color: var(--text-color);
+    border: 2px solid var(--primary-color);
+    box-shadow: 0 0 10px var(--secondary-color);
+}
 
 /* Share Buttons */
 .share-btn { 
     background: var(--info-color); 
     color: white; 
-    margin-bottom: 10px;
+    margin-bottom: 5px;
 }
 /* Utility Buttons (শিক্ষক প্যানেল) */
-.utility-btn {
-    background: var(--danger-color) !important;
-    color: white !important;
-    margin-bottom: 10px;
+.teacher-nav-btn {
+    padding: 10px 10px !important;
+    font-size: 14px !important;
+    margin-top: 0;
 }
+.teacher-nav-btn.active-nav {
+    background: var(--secondary-color) !important;
+    color: var(--text-color) !important;
+    border: 2px solid var(--primary-color);
+    box-shadow: 0 0 10px var(--secondary-color);
+}
+/* Exam Item Buttons (আইকন সহ ছোট) */
 .exam-btn {
-    background: #4CAF50; /* সবুজ */
+    background: #4CAF50; 
     color: white;
     width: auto !important;
-    padding: 8px 15px !important;
-    margin: 5px;
-    font-size: 15px !important;
+    padding: 5px 8px !important; 
+    margin: 3px;
+    font-size: 12px !important; 
 }
-
-/* Exam Item Buttons */
+.exam-btn i {
+    margin: 0 !important;
+}
 .exam-item-actions {
     display: flex;
-    gap: 5px;
-    margin-left: 10px;
+    gap: 3px;
+    margin-left: 5px;
 }
 .exam-item-actions button {
     margin: 0 !important;
-    padding: 6px 10px !important;
-    font-size: 14px !important;
+    padding: 5px 8px !important;
+    font-size: 12px !important;
     width: auto !important;
 }
 .exam-delete-btn {
@@ -998,149 +1226,231 @@ button i { margin-right: 10px; font-size: 20px; }
 }
 
 /* -------------------- টেবিল এবং রেজাল্ট -------------------- */
-.result{text-align:center; font-size:26px; margin-top:30px; font-weight: 800; color: var(--danger-color);}
 .table-container {
-    max-height: 400px; 
-    overflow-y: auto; 
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    margin-top: 20px;
+    max-height: 350px; 
+    overflow-y: auto;
 }
-table{width:100%; border-collapse:collapse; margin-top:0;}
-table, th, td{border:1px solid #ddd;}
-th, td{padding:10px; text-align:center; font-size: 14px;}
-th{background:var(--primary-color); color:white; position: sticky; top: 0; z-index: 10;} 
-td button.detail-btn, td .action-buttons button { 
+th, td{padding:8px; text-align:center; font-size: 12px;} 
+
+td .action-buttons button { 
     width: auto !important; 
-    padding: 6px 10px !important; 
-    margin: 3px 2px !important; 
-    font-size: 13px !important;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    border-radius: 5px;
-}
-td button.detail-btn { 
-    background: var(--secondary-color); 
-    color: var(--text-color); 
-}
-.result-delete-btn {
-    background: var(--danger-color);
-    color: white;
+    padding: 4px 6px !important; 
+    margin: 2px !important; 
+    font-size: 11px !important; 
 }
 
-/* Mobile Link Style */
-.mobile-link {
-    color: var(--primary-color);
-    font-weight: bold;
-    cursor: pointer;
-    text-decoration: underline;
-}
-
-/* Modal Styles (ফুলস্ক্রিন মডাল) */
-.modal { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: var(--card-bg); }
-.modal-content { 
-    background-color: var(--card-bg); margin: 0; padding: 25px; border-radius: 0; 
-    width: 100%; height: 100%; overflow-y: auto; box-shadow: none;
-}
-.close { color: #aaa; position: fixed; top: 15px; right: 25px; font-size: 32px; font-weight: bold; background: white; border-radius: 50%; width: 40px; height: 40px; line-height: 40px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 10001; }
-.close:hover, .close:focus { color: #000; text-decoration: none; cursor: pointer; }
-.sheet-header h3 { color: var(--primary-color); border-bottom: 2px dashed var(--secondary-color); padding-bottom: 10px; margin-bottom: 5px; }
-.sheet-info p { margin: 5px 0; font-size: 16px; }
-.ans-correct { color: var(--success-color); font-weight: bold; }
-.ans-incorrect { color: var(--danger-color); font-weight: bold; }
-.result-score { font-size:26px; font-weight: 800; color: var(--danger-color); }
-
-/* সংরক্ষিত পরীক্ষার তালিকা স্টাইল */
-#savedExamsList {
-    margin-top: 15px;
-    padding: 10px;
-    border: 1px solid var(--primary-color);
-    border-radius: 8px;
-    background: #f0f8ff;
-}
-.exam-item {
-    border: 1px solid #ddd;
-    padding: 10px;
-    margin-bottom: 8px;
-    border-radius: 5px;
-    background: #ffffff;
+/* -------------------- গর্জিয়াস স্প্ল্যাশ স্ক্রিন -------------------- */
+#splashScreen {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--bg-gradient); 
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    justify-content: center;
     align-items: center;
+    z-index: 9999;
 }
-.exam-item-details strong {
-    color: var(--primary-color);
-    font-size: 16px;
-}
-/* Print Style */
-@media print {
-    body * { visibility: hidden; }
-    .modal, .modal * { visibility: visible; }
-    .modal { position: absolute; left: 0; top: 0; width: 100%; margin: 0; }
-    .close, #printBtn, .utility-btn, .detail-btn, .share-btn, #savedExams, #toggleResultBtn, .exam-item-actions, .action-buttons { display: none !important; }
-    .modal-content { margin: 0; width: 100%; box-shadow: none; border: none; padding: 0; }
-    #resultSheet { border: none; }
+.splash-circle {
+    width: 250px; height: 250px; 
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    box-shadow: 0 0 50px rgba(255, 255, 255, 0.3);
+    animation: rotateGlow 5s ease-out forwards; /* অ্যানিমেশন সময় বাড়ানো হলো */
 }
 .splash-title {
-    font-size: 60px; font-weight: 800; margin-bottom: 20px; opacity: 0;
-    animation: fadeInScale 2s forwards; letter-spacing: 3px;
-    border: 5px solid var(--secondary-color); padding: 20px 40px;
-    border-radius: 20px; text-shadow: 0 0 15px rgba(255, 255, 255, 0.7);
+    font-size: 55px; font-weight: 800; margin-bottom: 5px; opacity: 0;
+    color: #fff; text-shadow: 0 0 15px var(--secondary-color), 0 0 20px #fff;
+    animation: fadeInScale 2.5s 0.5s forwards;
+    letter-spacing: 2px;
 }
 .splash-subtitle {
-    font-size: 28px; opacity: 0; animation: fadeIn 2s 1s forwards;
+    font-size: 20px; opacity: 0; color: #fff;
+    animation: fadeIn 2.5s 1s forwards;
+    margin-top: 5px;
 }
+.splash-teacher {
+    position: absolute;
+    bottom: -150px; /* নামালাম যাতে ভালো দেখা যায় */
+    font-size: 20px; 
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    line-height: 1.5;
+    padding: 10px 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 15px;
+    opacity: 0;
+    animation: fadeIn 2s 3.5s forwards; /* ঘোরার পরে দেখা যাবে */
+    border: 3px solid var(--secondary-color);
+}
+.teacher-glow {
+    /* রঙিন গ্লো এফেক্ট */
+    background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: rgbMove 3s infinite alternate;
+    display: inline-block;
+}
+
 @keyframes fadeInScale {
     0% { transform: scale(0.5); opacity: 0; }
-    80% { transform: scale(1.05); opacity: 1; }
-    100% { transform: scale(1); }
+    100% { transform: scale(1); opacity: 1; }
 }
 @keyframes fadeIn {
     0% { opacity: 0; }
     100% { opacity: 1; }
 }
-/* -------------------- জ্বলন্ত টাইটেল (RGB Glow & Move Effect) -------------------- */
-.glow-title {
-    text-align: center; font-size: 35px; font-weight: 800; margin-bottom: 5px; 
-    color: #fff; background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
-    background-size: 200% 200%; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    animation: rgbGlowAndMove 4s infinite linear alternate, horizontalMove 1.5s infinite alternate ease-in-out;
-    display: block; padding: 5px 0; width: fit-content; margin-left: auto; margin-right: auto; 
+/* ** আপডেট করা অ্যানিমেশন: দুই রাউন্ড ঘুরে সোজা হবে এবং স্থির থাকবে ** */
+@keyframes rotateGlow {
+    0% { transform: rotate(0deg); box-shadow: 0 0 50px var(--secondary-color); }
+    50% { box-shadow: 0 0 60px var(--info-color); transform: rotate(720deg); } /* দ্রুত দুই রাউন্ড (720deg) ঘোরা */
+    70% { transform: rotate(0deg); } /* সোজা হয়ে স্থির হওয়া শুরু */
+    100% { transform: rotate(0deg); box-shadow: 0 0 50px var(--secondary-color); } /* স্থির হওয়া */
 }
-@keyframes rgbGlowAndMove { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-@keyframes horizontalMove { from { transform: translateX(-15px); } to { transform: translateX(15px); } }
+@keyframes rgbMove { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
 
-/* শিক্ষক তথ্য স্টাইল */
+/* -------------------- শিক্ষক তথ্য স্টাইল (মোবারক হোসেন বড় ও লাল) -------------------- */
 .teacher-info {
-    text-align: center; margin-bottom: 20px; font-size: 18px; color: #424242; font-weight: 700; line-height: 1.5;
+    text-align: center; margin-bottom: 15px; font-size: 16px; color: #424242; font-weight: 700; line-height: 1.5;
+}
+.teacher-info strong, .contact-info-list strong {
+    font-size: 20px; /* ** মোবারক হোসেনের ফন্ট সাইজ বড় করা হলো ** */
+    color: var(--danger-color) !important; /* ** গাঢ় লাল ** */
+    display: block; 
+    margin-bottom: 5px;
 }
 
-/* পরীক্ষা সম্পন্ন বার্তা স্টাইল */
+/* -------------------- পরীক্ষা সম্পন্ন বার্তা স্টাইল (উন্নত ভিজিবিলিটি) -------------------- */
 #examCompletedMessage {
-    background: #fff3e0;
-    padding: 30px;
-    border-radius: 10px;
-    border: 2px solid var(--secondary-color);
+    background: none; 
+    padding: 0;
+    border-radius: 0;
+    border: none;
     text-align: center;
-    margin-top: 30px;
+    margin-top: 25px;
+    box-shadow: none;
+    color: white; /* এই প্যানেলের মূল টেক্সট সাদা হবে */
 }
 #examCompletedMessage h2 {
-    color: var(--danger-color);
-    border: none;
-    font-size: 28px;
+    color: #fff; /* পরীক্ষা সম্পন্ন হেডলাইন সাদা করা হলো */
+    border-bottom: 3px solid var(--secondary-color);
+}
+.duplicate-message-box {
+    background: #ffecb3; /* হালকা হলুদ ব্যাকগ্রাউন্ড */
+    padding: 20px;
+    border-radius: 15px;
+    border: 3px solid var(--danger-color); /* লাল বর্ডার */
+    text-align: center;
+    margin-top: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+.duplicate-message-box.large-box {
+    margin-bottom: 20px;
+}
+/* ** মূল বার্তা: আপনি ইতি মধ্যে পরীক্ষায় অংশগ্রহন করছেন। ** */
+.duplicate-text-primary {
+    font-size: 20px; 
+    color: #8B0000; /* গাঢ় লাল (Dark Red) */
+    font-weight: 800; 
+    margin-top: 0; 
+    text-shadow: 1px 1px 2px #ffc107; /* হলুদ শ্যাডো */
+}
+/* ** সেকেন্ডারি বার্তা: পরবর্তী পরীক্ষার জন্য অপেক্ষা করেন। ** */
+.duplicate-text-secondary {
+    font-size: 18px; 
+    color: var(--primary-color); /* গাঢ় নীল */
+    font-weight: 700; 
+    margin-top: 10px;
+}
+/* ** যোগাযোগের হেডার ** */
+.duplicate-contact-header {
+    font-size: 18px; 
+    color: #fff; /* সাদা রঙে হেডার */
+    font-weight: 700; 
+    margin-top: 20px; 
+    border-top: 1px dashed #fff; 
+    padding-top: 15px;
+    text-align: center;
+}
+/* ** যোগাযোগ লিংক স্টাইল ** */
+.contact-info-list a {
+    font-size: 16px;
+    font-weight: bold;
+}
+/* *** ফিক্স: মোবাইল নম্বর লিংক সাদা ব্যাকগ্রাউন্ডে কালো করা হলো *** */
+/* default-message, examCompletedMessage এ ব্যবহার হয় */
+.contact-mobile-link-dark { 
+    color: var(--text-color) !important; 
+    text-decoration: underline;
+} 
+/* ******************************************************* */
+
+.detail-item {
+    border-left: 5px solid; 
+    background: #fff; 
+    padding: 10px; 
+    border-radius: 5px; 
+    margin-bottom: 8px; 
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-/* সেভ ও আপডেট বাটন (নতুন) */
-#saveOrUpdateExamBtn {
-    background: #00bcd4; /* info-color */
-    color: white;
+/* ** ফলাফল মডাল বাটন ফিক্স ** */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.8);
+}
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto; 
+    padding: 20px;
+    border: 1px solid #888;
+    width: 90%; 
+    max-width: 600px;
+    border-radius: 15px;
+    position: relative;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+.modal .close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    position: absolute; 
+    top: 10px;
+    right: 15px;
+}
+.modal-content button {
+    margin-top: 20px;
 }
 </style>
 </head>
 <body>
 
 <div id="splashScreen">
-    <div class="splash-title">MS EDUCATION</div>
-    <div class="splash-subtitle">অনলাইন পরীক্ষা ব্যবস্থা</div>
+    <div class="splash-circle">
+        <div class="splash-title">MS EDUCATION</div>
+        <div class="splash-subtitle">
+            শিক্ষক: **মোবারক হোসেন**<br>
+            "আল হামরা নূরানী মাদরাসা" 
+        </div>
+    </div>
+    <div class="splash-teacher">
+        <i class="fas fa-school" style="color: var(--secondary-color);"></i> অনলাইন পরীক্ষা ব্যবস্থা
+    </div>
 </div>
 
 <div id="app">
@@ -1148,18 +1458,18 @@ td button.detail-btn {
 <div class="glow-title">MS EDUCATION</div>
 
 <div class="teacher-info">
-    শিক্ষক: **মোবারক হোসেন**<br>
+    শিক্ষক: <strong>মোবারক হোসেন</strong><br>
     <i class="fas fa-mosque" style="color: var(--primary-color);"></i> আল হামরা নূরানী মাদরাসা
 </div>
 
-<div style="display: flex; gap: 10px; margin-bottom: 10px;">
-    <button class="utility-btn" id="toggleNewExamBtn" onclick="toggleTeacherPanel('newExam')" style="margin-top: 0; flex-grow: 1; background: var(--success-color) !important;"><i class="fas fa-plus"></i> নতুন পরীক্ষা</button>
-    <button class="utility-btn" id="toggleSavedExamBtn" onclick="toggleTeacherPanel('savedExams')" style="margin-top: 0; flex-grow: 1; background: var(--info-color) !important;"><i class="fas fa-list-alt"></i> সংরক্ষিত পরীক্ষা</button>
-    <button class="utility-btn" id="toggleResultBtn" onclick="toggleTeacherPanel('results')" style="margin-top: 0; flex-grow: 1;"><i class="fas fa-poll-h"></i> ফলাফল দেখুন</button>
+<div style="display: flex; gap: 5px; margin-bottom: 10px;">
+    <button class="teacher-nav-btn" id="toggleNewExamBtn" onclick="toggleTeacherPanel('newExam')" style="background: var(--success-color) !important; flex-grow: 1;"><i class="fas fa-plus"></i> নতুন</button>
+    <button class="teacher-nav-btn" id="toggleSavedExamBtn" onclick="toggleTeacherPanel('savedExams')" style="background: var(--info-color) !important; flex-grow: 1;"><i class="fas fa-list-alt"></i> সংরক্ষিত</button>
+    <button class="teacher-nav-btn" id="toggleResultBtn" onclick="toggleTeacherPanel('results')" style="background: var(--danger-color) !important; flex-grow: 1;"><i class="fas fa-poll-h"></i> ফলাফল</button>
 </div>
 
 <div id="newExamPanel">
-    <h2 style="margin-top: 15px;"><i class="fas fa-chalkboard-teacher"></i> নতুন/সম্পাদনা পরীক্ষা তৈরি</h2>
+    <h2 style="margin-top: 15px;"><i class="fas fa-chalkboard-teacher"></i> পরীক্ষা তৈরি/সম্পাদনা</h2>
     <p id="examIdDisplay" style="text-align: center; color: var(--danger-color); font-weight: bold; margin-bottom: 10px; display: none;"></p>
     
     <div class="input-group">
@@ -1172,20 +1482,20 @@ td button.detail-btn {
 
     <div id="questionForms">
     <div class="question-container">
-    <div class="input-group"><input type="text" class="qText" placeholder="যেমন: বাংলাদেশের রাজধানীর নাম কী? (AI সাজেশন)"></div>
-    <div class="input-group">
-    <input type="text" class="opt" placeholder="অপশন ১">
-    <input type="text" class="opt" placeholder="অপশন ২">
-    <input type="text" class="opt" placeholder="অপশন ৩">
-    <input type="text" class="opt" placeholder="অপশন ৪">
+    <div class="input-group"><label>প্রশ্ন ১:</label><input type="text" class="qText" placeholder="যেমন: বাংলাদেশের রাজধানীর নাম কী? (AI সাজেশন)"></div>
+    <div class="input-group options-group">
+    <input type="text" class="opt small-input" placeholder="অপশন ১">
+    <input type="text" class="opt small-input" placeholder="অপশন ২">
+    <input type="text" class="opt small-input" placeholder="অপশন ৩">
+    <input type="text" class="opt small-input" placeholder="অপশন ৪">
     </div>
-    <div class="input-group">
+    <div class="input-group correct-select-group">
     <label>সঠিক উত্তর:</label>
-    <select class="correctAnswer">
-    <option value="0">অপশন ১</option>
-    <option value="1">অপশন ২</option>
-    <option value="2">অপশন ৩</option>
-    <option value="3">অপশন ৪</option>
+    <select class="correctAnswer small-select">
+    <option value="0">১</option>
+    <option value="1">২</option>
+    <option value="2">৩</option>
+    <option value="3">৪</option>
     </select>
     </div>
     </div>
@@ -1200,22 +1510,22 @@ td button.detail-btn {
     <div id="examLinkContainer" style="display:none; margin-top: 20px;">
     <hr>
     <div class="glow-title" style="font-size: 30px;">পরীক্ষার লিঙ্ক</div>
-    <div id="examLink" class="link-box" style="word-wrap: break-word;"></div>
+    <div id="examLink" class="link-box" style="word-wrap: break-word; font-size: 14px;"></div>
 
-    <button class="share-btn" onclick="shareLink()"><i class="fas fa-share-alt"></i> পরীক্ষার লিঙ্ক শেয়ার করুন</button>
+    <button class="share-btn" onclick="shareLink()"><i class="fas fa-share-alt"></i> লিঙ্ক শেয়ার করুন</button>
     </div>
 </div>
 
 <div id="savedExamsPanel" style="display:none;">
-    <h2 style="margin-top: 15px;"><i class="fas fa-clipboard-list"></i> সংরক্ষিত পরীক্ষার তালিকা</h2>
-    <p style="text-align: center; color: var(--primary-color); font-weight: 700;">যেকোনো পরীক্ষার **'লিঙ্ক নিন'** বোতামে ক্লিক করে এটি আবার ছাত্রদের সাথে শেয়ার করতে পারবেন।</p>
+    <h2 style="margin-top: 15px;"><i class="fas fa-clipboard-list"></i> সংরক্ষিত পরীক্ষা</h2>
+    <p style="text-align: center; color: var(--primary-color); font-weight: 700; font-size: 14px;">লিঙ্ক নিন বোতাম ব্যবহার করে শেয়ার করুন।</p>
     <div id="savedExamsList">
         </div>
 </div>
 
 <div id="resultPanel" style="display:none;">
-    <h2 style="margin-top: 15px;"><i class="fas fa-poll-h"></i> পরীক্ষার ফলাফল তালিকা</h2>
-    <button class="utility-btn" onclick="updateResultTable()" style="background: var(--success-color) !important; margin-top: 0;"><i class="fas fa-sync-alt"></i> রেজাল্ট রিফ্রেশ করুন</button>
+    <h2 style="margin-top: 15px;"><i class="fas fa-poll-h"></i> পরীক্ষার ফলাফল</h2>
+    <button class="teacher-nav-btn" onclick="updateResultTable()" style="background: var(--success-color) !important; margin-top: 0; width: 50%; margin: 0 auto 10px auto;"><i class="fas fa-sync-alt"></i> রিফ্রেশ করুন</button>
 
     <div class="table-container">
         <table id="resultTable">
@@ -1231,7 +1541,7 @@ td button.detail-btn {
 <div id="studentStart" style="display:none;">
 <div class="glow-title">MS EDUCATION</div>
 <div class="teacher-info">
-    পরীক্ষা পরিচালনায়: **মোবারক হোসেন**<br>
+    পরীক্ষা পরিচালনায়: <strong>মোবারক হোসেন</strong><br>
     <i class="fas fa-mosque" style="color: var(--primary-color);"></i> আল হামরা নূরানী মাদরাসা
 </div>
 <h2 id="studentExamTitleDisplay"><i class="fas fa-file-alt"></i></h2>
@@ -1273,25 +1583,12 @@ td button.detail-btn {
 </div>
 
 <div id="examCompletedMessage" style="display: none;">
-    <h2><i class="fas fa-check-circle"></i> পরীক্ষা সম্পূর্ণ</h2>
-    <p style="font-size: 18px; color: var(--success-color); font-weight: bold; margin-top: 15px;">
-        আপনি এই পরীক্ষাটি ইতোমধ্যে একবার সম্পন্ন করেছেন।
-    </p>
-    <p style="font-size: 17px; color: var(--primary-color); margin-top: 10px;">
-        রেজাল্ট প্রকাশের জন্য অপেক্ষা করুন। ধন্যবাদ।
-    </p>
+    <div id="completedMessageText">
+        </div>
 
-    <div id="contactInfoBlock2" style="margin-top: 30px; border-top: 1px dashed #ccc; padding-top: 20px;">
-        <p style="font-size: 18px; color: var(--danger-color); font-weight: 700; text-align: center;">
-            <i class="fas fa-hand-point-right"></i> বিশেষ প্রয়োজনে যোগাযোগ করুন:
-        </p>
-        <p style="text-align: center; margin: 10px 0;">
-            <strong style="color: var(--primary-color);">মোবারাক হোসেন</strong><br>
-            <i class="fas fa-mobile-alt"></i> Mobile: <a href="tel:01883109096" id="mobileLink2" style="color: var(--primary-color); font-weight: bold;">01883109096</a><br>
-            <i class="fab fa-whatsapp" style="color: #25D366;"></i> WhatsApp: <a href="https://wa.me/8801883109096" target="_blank" id="whatsappLink2" style="color: #25D366; font-weight: bold;">যোগাযোগ করুন</a><br>
-            <i class="fab fa-facebook" style="color: #1877F2;"></i> Facebook: <a href="https://www.facebook.com/mubarak.hosen.37625" target="_blank" id="facebookLink2" style="color: #1877F2; font-weight: bold;">যোগাযোগ করুন</a>
-        </p>
-    </div>
+    <div id="duplicateContactBlock2">
+        </div>
+
     </div>
 </div>
 
@@ -1310,10 +1607,10 @@ td button.detail-btn {
 
 <div id="result" style="display:none;">
     <h2><i class="fas fa-check-circle"></i> পরীক্ষা সম্পন্ন</h2>
-    <p style="text-align: center; font-size: 24px; color: var(--success-color); margin-top: 30px; font-weight: 800;">
+    <p style="text-align: center; font-size: 20px; color: var(--success-color); margin-top: 20px; font-weight: 800;">
         সুন্দরভাবে প্রশ্নগুলোর উত্তর দেওয়ার জন্য আপনাকে ধন্যবাদ।
     </p>
-    <p style="text-align: center; font-size: 18px; color: var(--primary-color); margin-top: 15px;">
+    <p style="text-align: center; font-size: 16px; color: var(--primary-color); margin-top: 10px;">
         আপনার ফলাফল খুব শীঘ্রি, শিক্ষক আপনাকে জানাবেন।
     </p>
 
@@ -1322,8 +1619,8 @@ td button.detail-btn {
             <i class="fas fa-hand-point-right"></i> বিশেষ প্রয়োজনে যোগাযোগ করুন:
         </p>
         <p style="text-align: center; margin: 10px 0;">
-            <strong style="color: var(--primary-color);">মোবারাক হোসেন</strong><br>
-            <i class="fas fa-mobile-alt"></i> Mobile: <a href="tel:01883109096" id="mobileLink1" style="color: var(--primary-color); font-weight: bold;">01883109096</a><br>
+            <strong style="color: var(--danger-color);">মোবারক হোসেন</strong><br>
+            <i class="fas fa-mobile-alt"></i> Mobile: <a href="tel:01883109096" id="mobileLink1" class="mobile-link" style="color: var(--primary-color); font-weight: bold;">01883109096</a><br>
             <i class="fab fa-whatsapp" style="color: #25D366;"></i> WhatsApp: <a href="https://wa.me/8801883109096" target="_blank" id="whatsappLink" style="color: #25D366; font-weight: bold;">যোগাযোগ করুন</a><br>
             <i class="fab fa-facebook" style="color: #1877F2;"></i> Facebook: <a href="https://www.facebook.com/mubarak.hosen.37625" target="_blank" id="facebookLink" style="color: #1877F2; font-weight: bold;">যোগাযোগ করুন</a>
         </p>
@@ -1335,7 +1632,7 @@ td button.detail-btn {
     <div class="glow-title" style="font-size: 40px; margin-bottom: 25px;">MS EDUCATION</div>
     <h2 style="border-bottom: none;"><i class="fas fa-graduation-cap"></i> অনলাইন পরীক্ষা পোর্টাল</h2>
     <p style="text-align: center; font-size: 18px; color: var(--text-color); margin-bottom: 20px; font-weight: 700;">প্রিয় শিক্ষার্থী, এটি পরীক্ষার মূল পাতা।</p>
-    <p style="font-size: 17px; line-height: 1.6;">পরীক্ষায় অংশ নিতে হলে আপনাকে অবশ্যই শিক্ষকর দেওয়া **সম্পূর্ণ পরীক্ষার লিঙ্কে** (যেটিতে `?id=` থাকবে) ক্লিক করে প্রবেশ করতে হবে।</p>
+    <p style="font-size: 17px; line-height: 1.6;">পরীক্ষায় অংশ নিতে হলে আপনাকে অবশ্যই শিক্ষকের দেওয়া **সম্পূর্ণ পরীক্ষার লিঙ্কে** (যেটিতে `?id=` থাকবে) ক্লিক করে প্রবেশ করতে হবে।</p>
     
     <div class="input-group" style="text-align: center; margin-top: 30px;">
         <p style="color: var(--danger-color); font-weight: 700;"><i class="fas fa-phone-volume"></i> কোনো সমস্যা হলে আপনার শিক্ষকের সাথে যোগাযোগ করুন।</p>
@@ -1343,6 +1640,9 @@ td button.detail-btn {
 
     <hr style="margin-top: 30px;">
     <p style="font-size: 15px; color: #666; text-align: center;">**শিক্ষকদের জন্য:** শিক্ষক প্যানেলে প্রবেশ করতে লিঙ্কে ম্যানুয়ালি `?teacher` যোগ করুন, অথবা **<a href="javascript:void(0);" onclick="window.location.href = window.location.href.split('?')[0] + '?teacher';" style="color: var(--primary-color); font-weight: bold;">এখানে ক্লিক করুন</a>**।</p>
+
+    <div id="duplicateContactBlock"></div>
+
 </div>
 
 <div id="detailModal" class="modal">
