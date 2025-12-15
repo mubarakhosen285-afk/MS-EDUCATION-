@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="bn">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> 
-<title>MS EDUCATION Pro Online Exam App - v7.2 (Fixed Diagram Upload & File Upload)</title>
+<title>MS EDUCATION Pro Online Exam App - v7.3 (Fixed Diagram Upload & Print)</title>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+Da+2:wght@400;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
@@ -105,7 +104,6 @@
 
     // --- যোগাযোগের লিংক ইনজেক্ট করা ---
     function injectContactLinks() {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         const mobileLinkElements = document.querySelectorAll('.mobile-link-text');
         mobileLinkElements.forEach(el => el.innerText = CONTACT_LINKS.mobile);
         
@@ -170,12 +168,14 @@
         return url.endsWith('/') ? url : url + '/';
     }
 
-    // ** শিক্ষক প্যানেল টগলিং (কোনো পরিবর্তন নেই) **
+    // ** শিক্ষক প্যানেল টগলিং **
     let currentTeacherView = 'newExam'; 
     window.toggleTeacherPanel = function(view) {
         newExamPanel.style.display = 'none';
         savedExamsPanel.style.display = 'none';
         resultListPanel.style.display = 'none';
+        // প্রশ্নপত্রের পিডিএফ টেম্পলেট লুকানো
+        document.getElementById('printQuestionSheet').style.display = 'none'; 
 
         document.querySelectorAll('.teacher-nav-btn').forEach(btn => btn.classList.remove('active-nav'));
 
@@ -197,7 +197,7 @@
         }
     }
 
-    // ** নতুন পরীক্ষা প্যানেল রিসেট (পরিবর্তন নেই) **
+    // ** নতুন পরীক্ষা প্যানেল রিসেট **
     function resetNewExamPanel() {
         currentEditExamID = null;
         document.getElementById('examTitle').value = '';
@@ -213,6 +213,8 @@
         document.getElementById('saveOrUpdateExamBtn').style.display = 'block';
         document.getElementById('generateLinkBtn').style.display = 'none';
         document.getElementById('examLinkContainer').style.display = 'none';
+        // নতুন বাটন: প্রিন্ট বাটন লুকানো
+        document.getElementById('printExamBtn').style.display = 'none';
     }
 
 
@@ -226,20 +228,21 @@
         const placeholderText = qText || sampleQuestions[(questionCounter-1) % sampleQuestions.length];
         const questionId = `q_text_${questionCounter}`;
         const fileInputId = `q_file_${questionCounter}`;
+        const containerIndex = questionCounter; // সঠিক ইনডেক্স ব্যবহার করা
 
         // প্রিভিউ বাটন, ড্রয়িং বাটন, ফাইল ইনপুট ও রিমুভ বাটন যোগ করা
         newQContainer.innerHTML=`
         <hr>
         <div class="question-header-bar">
-            <label>প্রশ্ন ${questionCounter}:</label>
+            <label>প্রশ্ন ${containerIndex}:</label>
             <div class="header-actions">
-                <button type="button" class="utility-btn drawing-btn" onclick="openDiagramTool(${questionCounter})" title="বীজগণিত/জ্যামিতি চিত্র আঁকুন">
+                <button type="button" class="utility-btn drawing-btn" onclick="openDiagramTool(${containerIndex})" title="বীজগণিত/জ্যামিতি চিত্র আঁকুন">
                     <i class="fas fa-pencil-ruler"></i> চিত্র আঁকুন
                 </button>
                 <button type="button" class="utility-btn file-upload-btn" onclick="document.getElementById('${fileInputId}').click()" title="ফাইল থেকে চিত্র আপলোড করুন">
                     <i class="fas fa-cloud-upload-alt"></i> ছবি আপলোড
                 </button>
-                <input type="file" id="${fileInputId}" style="display: none;" accept="image/*" onchange="uploadImageFromFile(this, ${questionCounter})">
+                <input type="file" id="${fileInputId}" style="display: none;" accept="image/*" onchange="uploadImageFromFile(this, ${containerIndex})">
                 <button type="button" class="utility-btn preview-btn" onclick="previewQuestion('${questionId}')" title="প্রশ্ন প্রিভিউ করুন"><i class="fas fa-eye"></i> প্রিভিউ</button>
                 <button type="button" class="utility-btn remove-btn" onclick="removeQuestion(this)" title="প্রশ্ন মুছে দিন"><i class="fas fa-trash-alt"></i></button>
             </div>
@@ -250,7 +253,7 @@
             <input type="hidden" class="qImageURL" value="${imgUrl}"> 
         </div>
         
-        <div class="image-preview" id="diagram_preview_${questionCounter}">
+        <div class="image-preview" id="diagram_preview_${containerIndex}">
             ${imgUrl ? `<img src="${imgUrl}" style="max-width: 100%; border: 1px solid #ddd; margin-top: 5px;">
             <button type="button" class="utility-btn remove-img-btn" onclick="removeQuestionImage(this)" style="background: var(--danger-color) !important; width: 100px; margin-top: 5px;"><i class="fas fa-trash-alt"></i> মুছুন</button>` : ''}
         </div>
@@ -280,7 +283,7 @@
         questionCounter++;
     }
 
-    // **সংশোধন: চিত্র মুছে ফেলার ফাংশন (শিক্ষক প্যানেলে) (পরিবর্তন নেই)**
+    // **সংশোধন: চিত্র মুছে ফেলার ফাংশন (শিক্ষক প্যানেলে)**
     window.removeQuestionImage = function(buttonElement) {
         const imgPreviewDiv = buttonElement.closest('.image-preview');
         const container = buttonElement.closest('.question-container');
@@ -289,6 +292,8 @@
             const imgURLInput = container.querySelector('.qImageURL');
 
             if (imgURLInput) {
+                // Firebase Storage থেকে চিত্র ডিলিট করার ফাংশন যোগ করা হয়নি। 
+                // শুধুমাত্র লিঙ্ক মুছে দিলাম।
                 imgURLInput.value = ''; 
             }
             
@@ -327,7 +332,7 @@
             alert("ফাইল থেকে চিত্র সফলভাবে আপলোড ও প্রশ্নের সাথে যুক্ত হয়েছে!");
         } else {
             imgPreviewDiv.innerHTML = '';
-            alert("চিত্র আপলোড ব্যর্থ হয়েছে।");
+            alert("চিত্র আপলোড ব্যর্থ হয়েছে। অনুগ্রহ করে Firebase Rules (Storage) চেক করুন।");
         }
     }
 
@@ -346,7 +351,6 @@
     }
 
     function initCanvas() {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         const canvasContainer = document.getElementById('canvas-container');
         const containerWidth = canvasContainer.offsetWidth;
         const canvasSize = Math.min(containerWidth, 600); 
@@ -422,7 +426,6 @@
 
     // স্মার্ট ড্রয়িং টগল ফাংশন
     window.toggleSmartDrawing = function() {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         pathSimplifierEnabled = !pathSimplifierEnabled;
         const btn = document.getElementById('smartDrawingBtn');
         if (pathSimplifierEnabled) {
@@ -442,7 +445,6 @@
 
     // জ্যামিতিক টেক্সট যোগ করার ফাংশন
     window.addGeometricText = function() {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         if (!canvas) return;
         const textInput = document.getElementById('geometricText');
         let text = textInput.value.trim();
@@ -467,7 +469,6 @@
 
     // বৃত্ত যোগ করার ফাংশন
     window.addCircle = function() {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         if (!canvas) return;
         const circle = new fabric.Circle({
             radius: 50,
@@ -484,7 +485,6 @@
     
     // ত্রিভুজ যোগ করার ফাংশন
     window.addTriangle = function() {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         if (!canvas) return;
         const triangle = new fabric.Triangle({
             width: 100,
@@ -502,7 +502,6 @@
 
     // সরাসরি কোণ যোগ করার ফাংশন (যেমন 30°)
     window.addAngleText = function() {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         if (!canvas) return;
         const angleInput = document.getElementById('angleInput');
         let text = angleInput.value.trim();
@@ -531,7 +530,6 @@
 
 
     window.clearCanvas = function() {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         if (canvas) {
             canvas.clear();
             canvas.setBackgroundColor('#fff', canvas.renderAll.bind(canvas));
@@ -546,6 +544,7 @@
         }
         
         const timestamp = new Date().getTime();
+        // নিশ্চিত করা হলো যে examId স্টোরেজ পাথের অংশ হবে
         const cleanedExamId = examId || "TEMP";
         const storageRef = storage.ref(`diagrams/${cleanedExamId}_${suffix}_${timestamp}.png`);
         
@@ -559,7 +558,7 @@
 
         } catch (error) {
             console.error("চিত্র আপলোড ব্যর্থ:", error);
-            alert(`চিত্র আপলোড ব্যর্থ হয়েছে। Firebase Storage Rules চেক করুন। কারণ: ${error.message}`);
+            alert(`চিত্র আপলোড ব্যর্থ হয়েছে। অনুগ্রহ করে Firebase Storage Rules (Storage) চেক করুন। কারণ: ${error.message}`);
             return null;
         }
     }
@@ -672,6 +671,8 @@
                 document.getElementById('examIdDisplay').innerText = `পরীক্ষা ID: ${examID} | সফলভাবে নতুনভাবে সংরক্ষিত হয়েছে।`;
                 document.getElementById('saveOrUpdateExamBtn').style.display = 'none'; 
                 document.getElementById('generateLinkBtn').style.display = 'block'; 
+                // নতুন বাটন: প্রিন্ট বাটন দেখানো 
+                document.getElementById('printExamBtn').style.display = 'block';
 
                 alert(`"${examTitle}" পরীক্ষাটি সফলভাবে নতুনভাবে সংরক্ষিত হয়েছে! এখন লিঙ্ক তৈরি করুন।`);
             }
@@ -681,10 +682,107 @@
             alert(`ত্রুটি: পরীক্ষা সেভ করা সম্ভব হয়নি। কারণ: ${e.message}.\n\nআপনি কি Firebase Rules পাবলিক করেছেন? (বিশেষ করে Storage Rules)`);
         }
     }
+    
+    // ** সংশোধিত ফাংশন: প্রশ্নপত্রের PDF তৈরি করার ফাংশন (MathJax রেন্ডার ফিক্স সহ) **
+    window.printNewExamQuestions = function() {
+        const title = document.getElementById('examTitle').value.trim();
+        const duration = document.getElementById('examDuration').value.trim();
+        const qContainers = document.getElementsByClassName('question-container');
+        const sheetContainer = document.getElementById('printQuestionSheet');
+        const printContent = document.getElementById('printQuestionContent');
+        
+        let html = `
+            <div class="print-header-section">
+                <h1 style="text-align: center; color: var(--primary-color); font-size: 28px; margin-bottom: 5px;">MS EDUCATION ONLINE EXAM</h1>
+                <h2 style="text-align: center; color: var(--danger-color); font-size: 22px; border-bottom: 2px solid #ccc; padding-bottom: 5px;">${title || "পরীক্ষার শিরোনাম"}</h2>
+                <p style="text-align: center; font-size: 16px; font-weight: 700; margin-top: 10px;">
+                    শিক্ষক: <span class="teacher-name-display">${CONTACT_LINKS.teacherName}</span> | সময়: ${duration} মিনিট
+                </p>
+                <p style="text-align: center; font-size: 14px; margin-bottom: 15px;">
+                    <i class="fas fa-exclamation-triangle"></i> সঠিক উত্তরটি প্রশ্নপত্রের শেষে দেওয়া আছে (শিক্ষকের জন্য)।
+                </p>
+                <hr style="border-top: 2px solid var(--secondary-color);">
+            </div>
+            
+            <div class="print-questions-section">
+        `;
+        
+        const correctAnswers = [];
+        
+        const optsAll = document.getElementsByClassName('opt');
+        const correctAll = document.getElementsByClassName('correctAnswer');
+        let optIndex = 0;
+
+        for (let i = 0; i < qContainers.length; i++) {
+            const container = qContainers[i];
+            const q = container.querySelector('.qText').value.trim();
+            const imgUrl = container.querySelector('.qImageURL').value.trim(); 
+            const correctAnsIndex = parseInt(correctAll[i].value);
+            
+            const options = [];
+            for (let j = 0; j < 4; j++) {
+                options.push(optsAll[optIndex].value.trim());
+                optIndex++;
+            }
+            
+            const imageHTML = imgUrl 
+                ? `<div style="text-align: center; margin-bottom: 10px;"><img src="${imgUrl}" alt="Question Diagram" style="max-width: 100%; border: 1px solid #ddd; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"></div>` 
+                : '';
+
+            html += `
+                <div class="print-question-item">
+                    ${imageHTML}
+                    <p style="font-weight: 700; font-size: 16px; margin-bottom: 10px;">${i + 1}. <span class="math-text">${q}</span></p>
+                    <div class="print-options">
+                        ${options.map((opt, idx) => `<p style="margin: 5px 0 5px 20px;">${banglaOptions[idx]}. <span class="math-text-option">${opt}</span></p>`).join('')}
+                    </div>
+                </div>
+            `;
+            
+            correctAnswers.push(`${i + 1} (${banglaOptions[correctAnsIndex]})`);
+        }
+        
+        html += `</div>`; // .print-questions-section শেষ
+
+        // --- সঠিক উত্তর সেকশন (শিক্ষকের জন্য) ---
+        html += `
+            <div class="print-answer-key">
+                <hr style="margin: 20px 0; border-top: 3px double #d32f2f;">
+                <h3 style="color: var(--danger-color); text-align: center;">শিক্ষকের জন্য: সঠিক উত্তরমালা</h3>
+                <p style="font-weight: 700; font-size: 14px; line-height: 1.8; text-align: center;">
+                    ${correctAnswers.join(', ')}
+                </p>
+                <hr style="margin-top: 20px;">
+            </div>
+        `;
+        
+        printContent.innerHTML = html;
+        sheetContainer.style.display = 'block'; 
+        
+        // **ফ্ল্যাগ যোগ করা হয়েছে: MathJax লোড না হলে সরাসরি প্রিন্ট**
+        if (window.MathJax) {
+            MathJax.typesetPromise([printContent]).then(() => {
+                // MathJax রেন্ডার শেষ হলে প্রিন্ট
+                window.print(); 
+                sheetContainer.style.display = 'none'; 
+            }).catch((err) => {
+                console.error("Print MathJax rendering failed, proceeding to print without MathJax:", err);
+                // MathJax ব্যর্থ হলে, সতর্ক করে সরাসরি প্রিন্ট
+                alert("MathJax রেন্ডারিং ব্যর্থ হয়েছে। প্রিন্ট করে দেখুন।");
+                window.print(); 
+                sheetContainer.style.display = 'none';
+            });
+        } else {
+             // MathJax স্ক্রিপ্ট লোড না হলে সরাসরি প্রিন্ট
+             alert("MathJax লাইব্রেরি লোড হয়নি। রেন্ডারিং ছাড়া প্রিন্ট করা হচ্ছে।");
+             window.print(); 
+             sheetContainer.style.display = 'none';
+        }
+    }
+
 
     // প্রশ্ন রিমুভ করার ফাংশন (নম্বর আপডেট করা হয়েছে)
     window.removeQuestion = function(buttonElement) {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         if (document.querySelectorAll('.question-container').length <= 1) { 
              alert("অন্তত একটি প্রশ্ন থাকতে হবে।");
              return;
@@ -708,7 +806,6 @@
     
     // LaTeX প্রিভিউ ফাংশন (কোনো পরিবর্তন নেই) 
     window.previewQuestion = function(inputId) {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         const inputElement = document.getElementById(inputId);
         const previewDiv = document.getElementById(`preview_output_${inputId}`);
         const mathPreviewDiv = previewDiv.querySelector('.math-preview');
@@ -739,7 +836,6 @@
 
     // লিঙ্ক তৈরি করার ফাংশন (কোনো পরিবর্তন নেই) 
     function generateExamLinkDisplay(examId, title, duration) {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         const link = `${getBaseUrl()}?id=${examId}`;
 
         document.getElementById('examLinkContainer').style.display = "block";
@@ -751,6 +847,8 @@
 
         document.getElementById('saveOrUpdateExamBtn').style.display = 'none';
         document.getElementById('generateLinkBtn').style.display = 'none';
+        // নতুন বাটন: প্রিন্ট বাটন দেখানো 
+        document.getElementById('printExamBtn').style.display = 'block';
 
         alert("পরীক্ষার লিঙ্ক সফলভাবে তৈরি হয়েছে! নিচে লিঙ্কটি শেয়ার করার জন্য প্রস্তুত।");
     }
@@ -758,7 +856,6 @@
 
     // উন্নত শেয়ারিং ফাংশন (শিক্ষক প্যানেলের জন্য) (কোনো পরিবর্তন নেই)
     window.shareLink = function(){
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         const link=`${getBaseUrl()}?id=${examID}`;
         
         const message=`🔔 MS Education কর্তৃক পরিচালিত অনলাইন পরীক্ষা 🔔\n\nবিষয়: ${examTitle}\n\nপরীক্ষায় অংশগ্রহণ করতে, নিচে দেওয়া লিঙ্কে ক্লিক করুন।\nসময়সীমা: ${durationMinutes} মিনিট।\n\nপরীক্ষার লিঙ্ক: ${link}\n\nআপনার জন্য শুভকামনা রইল! 🙏`;
@@ -780,7 +877,6 @@
 
     // শেয়ারিং ব্যর্থ হলে কপি করার ফলব্যাক (কোনো পরিবর্তন নেই) 
     function copyFallback(message, link) {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         navigator.clipboard.writeText(message).then(() => {
             alert(`✅ বার্তা সফলভাবে কপি হয়েছে!\n\nপরীক্ষার সম্পূর্ণ বার্তাটি আপনার ক্লিপবোর্ডে কপি করা হয়েছে। এখন আপনি ম্যানুয়ালি হোয়াটসঅ্যাপ বা মেসেঞ্জারে পেস্ট করতে পারেন।`);
         }).catch(err => {
@@ -790,7 +886,6 @@
 
     // ** সংরক্ষিত পরীক্ষার তালিকা লোড (কোনো পরিবর্তন নেই) **
     async function loadSavedExams() {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         const listDiv = document.getElementById('savedExamsList');
         listDiv.innerHTML = '<p style="text-align: center; color: #666;"><i class="fas fa-spinner fa-spin"></i> লোড হচ্ছে...</p>';
 
@@ -845,7 +940,6 @@
 
     // সংরক্ষিত পরীক্ষা ডিলিট করার ফাংশন (কোনো পরিবর্তন নেই) 
     window.deleteExam = async function(examId, examTitle) {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         if (!confirm(`আপনি কি নিশ্চিত? "${examTitle}" পরীক্ষাটি স্থায়ীভাবে মুছে যাবে। এটি মুছে দিলে ছাত্ররা আর এই পরীক্ষা দিতে পারবে না, তবে দেওয়া ফলাফলগুলি (results) থাকবে। এই সিদ্ধান্তটি অপরিবর্তনীয়।`)) {
             return;
         }
@@ -865,7 +959,6 @@
 
 
     window.copyExamLink = function(link, title, duration) {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         examID = link.split('?id=')[1]; 
         examTitle = title;
         durationMinutes = duration;
@@ -875,7 +968,6 @@
 
     // সংরক্ষিত পরীক্ষা লোড করে এডিট প্যানেলে দেখানোর ফাংশন (পরিবর্তন নেই)
     window.loadExamForEdit = async function(examId) {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         try {
             const docSnap = await db.collection("exams").doc(examId).get();
 
@@ -905,6 +997,9 @@
             document.getElementById('saveOrUpdateExamBtn').style.display = 'block';
             document.getElementById('generateLinkBtn').style.display = 'block'; 
             document.getElementById('examLinkContainer').style.display = 'none';
+            // নতুন বাটন: প্রিন্ট বাটন লুকানো
+            document.getElementById('printExamBtn').style.display = 'none';
+
 
             alert(`"${examData.title}" পরীক্ষাটি সফলভাবে এডিটের জন্য লোড করা হয়েছে। সেভ বাটন ক্লিক করলে নতুন লিঙ্ক তৈরি হবে।`);
 
@@ -919,7 +1014,6 @@
      * SHA256 হ্যাশ তৈরি করার ফাংশন (কোনো পরিবর্তন নেই)
      */
     function createUniqueHash(name, mobile, examId, type = 'student') {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         if (type === 'student') {
             const cleanedMobile = mobile.replace(/[^0-9]/g, ''); 
             const key = `${name.toLowerCase().trim()}::${cleanedMobile}::${examId}`;
@@ -933,7 +1027,6 @@
 
     // ** ছাত্র প্যানেল ফাংশন: পরীক্ষা শুরু (কোনো পরিবর্তন নেই) **
     window.startExam = async function(){
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         clearInterval(timerInterval); 
         
         studentName=document.getElementById('studentName').value.trim();
@@ -1006,7 +1099,7 @@
                         এই ডিভাইস থেকে পরীক্ষাটি ইতোমধ্যে সম্পন্ন হয়েছে।
                     </p>
                     <p class="duplicate-text-secondary">
-                        পরবর্তী পরীক্ষার জন্য অপেক্ষা করুন, অথবা শিক্ষককে যোগাযোগ করুন।
+                        পরবর্তী পরীক্ষার জন্য অপেক্ষা করুন, অথবা শিক্ষকের সাথে যোগাযোগ করুন।
                     </p>
                 </div>
                 <div id="duplicateContactBlock2"></div>
@@ -1044,7 +1137,6 @@
 
 
     function startTimer(minutes){
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         let time=minutes*60;
         const timerDisplay=document.getElementById('timerDisplay');
         clearInterval(timerInterval);
@@ -1065,7 +1157,6 @@
     
     // ** পরিবর্তন ২: সমস্ত প্রশ্ন রেন্ডার করা (চিত্র সহ) (কোনো পরিবর্তন নেই) **
     function renderAllQuestions() {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         document.getElementById('examTitleDisplay').innerText=examTitle;
         const questionsContainer = document.getElementById('questionsContainer');
         questionsContainer.innerHTML = ''; 
@@ -1121,7 +1212,6 @@
     
     // ** নতুন ফাংশন: উত্তর আপডেট করা (রেডিও বাটন ক্লিক হলে) (কোনো পরিবর্তন নেই) **
     window.updateStudentAnswer = function(qIndex, optIndex) {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         if (qIndex < studentAnswers.length) {
             studentAnswers[qIndex].studentAnswerIndex = optIndex;
         }
@@ -1154,7 +1244,6 @@
 
     // ** পরিবর্তন: ফলাফল সেভ করা এবং দেখানো (স্কোর হাইড) (কোনো পরিবর্তন নেই) **
     async function showResult(){
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         clearInterval(timerInterval);
         quizPanel.style.display="none";
         resultPanel.style.display="block";
@@ -1225,7 +1314,6 @@
 
     // ** রেজাল্ট প্যানেল লোড (কোনো পরিবর্তন নেই) **
     window.updateResultTable = async function(){
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         const table=document.getElementById('resultTable');
         table.innerHTML=`<tr><th>পরীক্ষার নাম</th><th>ছাত্রের নাম</th><th>শ্রেণী</th><th>স্কোর</th><th>সময়</th><th>অ্যাকশন</th></tr>`; 
         
@@ -1282,7 +1370,6 @@
 
     // নির্দিষ্ট ছাত্রের একটি ফলাফল ডিলিট করার ফাংশন (কোনো পরিবর্তন নেই) 
     window.deleteSingleResult = async function(resultId, studentName, examTitle, uniqueCheckID_Student, examId) {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         if (!confirm(`আপনি কি নিশ্চিত? ছাত্র ${studentName} এর "${examTitle}" পরীক্ষার ফলাফলটি স্থায়ীভাবে মুছে যাবে। এই ফলাফল মুছে দিলে ছাত্রটি আবার পরীক্ষায় অংশগ্রহণের সুযোগ পাবে।`)) {
             return;
         }
@@ -1306,9 +1393,8 @@
     }
 
 
-    // ** বিস্তারিত ফলাফল দেখানো এবং PDF/শেয়ার তৈরি করা (চিত্র সহ) (কোনো পরিবর্তন নেই)**
+    // ** সংশোধিত: বিস্তারিত ফলাফল দেখানো এবং PDF/শেয়ার তৈরি করা (চিত্র ও MathJax রেন্ডার ফিক্স সহ) **
     window.showDetailedResult = function(res) {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         const modal = document.getElementById('detailModal');
         const modalContentDiv = document.getElementById('modalContent');
         const totalQuestions = res.totalQuestions || res.answers.length;
@@ -1362,7 +1448,7 @@
             let borderStyle = isCorrect ? 'solid var(--success-color)' : (studentAnsIndex === -1 ? 'solid #aaa' : 'solid var(--danger-color)');
 
             const detailImageHTML = q.qImageURL 
-                ? `<div style="text-align: center; margin-bottom: 10px;"><img src="${q.qImageURL}" alt="Question Diagram" style="max-width: 100%; border: 1px solid #ddd;"></div>` 
+                ? `<div style="text-align: center; margin-bottom: 10px;"><img src="${q.qImageURL}" alt="Question Diagram" style="max-width: 100%; border: 1px solid #ddd; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"></div>` 
                 : '';
 
 
@@ -1411,6 +1497,24 @@
         modalContentDiv.innerHTML = html;
         modal.style.display = "block";
         
+        // MathJax রেন্ডার করার সময় প্রিন্ট বোতামের অ্যাকশন পরিবর্তন করা
+        const pdfPrintBtn = document.getElementById('pdfPrintBtn');
+        pdfPrintBtn.onclick = () => {
+             if (window.MathJax) {
+                // MathJax রেন্ডার করার পর প্রিন্ট
+                MathJax.typesetPromise([modalContentDiv]).then(() => {
+                    window.print();
+                }).catch((err) => {
+                    console.error("Modal Print MathJax rendering failed:", err);
+                    alert("MathJax রেন্ডারিং ব্যর্থ হয়েছে। প্রিন্ট করে দেখুন।");
+                    window.print();
+                });
+             } else {
+                 window.print();
+             }
+        };
+
+        // MathJax রেন্ডার করা
         if (window.MathJax) {
             MathJax.typesetPromise([modalContentDiv]).catch((err) => {
                 console.error("Result Detail MathJax rendering failed:", err);
@@ -1419,16 +1523,10 @@
         
         const shareBtn = document.getElementById('shareResultBtn');
         shareBtn.onclick = () => shareResult(res);
-        
-        const pdfPrintBtn = document.getElementById('pdfPrintBtn');
-        pdfPrintBtn.onclick = () => {
-            window.print();
-        };
     }
 
     // ** পরিবর্তন: ছাত্রের ফলাফল জেনেরিক শেয়ার অপশনে দেওয়া (কোনো পরিবর্তন নেই) **
     window.shareResult = function(res) {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         const totalQuestions = res.totalQuestions || res.answers.length;
         const scoreParts = res.score ? res.score.split('/') : ['0', totalQuestions];
         const totalCorrect = parseInt(scoreParts[0]);
@@ -1462,7 +1560,7 @@
             navigator.clipboard.writeText(message).then(() => {
                 alert('✅ ফলাফল বার্তা কপি হয়েছে। এখন মেসেঞ্জার/হোয়াটসঅ্যাপে পেস্ট করুন।');
             }).catch(err => {
-                alert('দুঃখিত, শেয়ার বাটন এই ডিভাইসে কাজ করছে না। শিক্ষককে যোগাযোগ করুন।');
+                alert('দুঃখিত, শেয়ার বাটন এই ডিভাইসে কাজ করছে না। শিক্ষকের সাথে যোগাযোগ করুন।');
             });
         }
     }
@@ -1474,7 +1572,6 @@
 
     // ** মোবাইল ব্যাক বাটন সাপোর্ট (কুইজ প্যানেলে নিশ্চিতকরণ যোগ করা হলো) **
     window.onpopstate = function(event) {
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         const modal = document.getElementById('detailModal');
         const diagramModal = document.getElementById('diagramModal'); 
         const quiz = document.getElementById('quiz');
@@ -1517,7 +1614,6 @@
 
     // *** লোডিং এবং রাউটিং ম্যানেজমেন্ট (পরিবর্তিত) ***
     window.onload=function(){
-        // ... (এই ফাংশন অপরিবর্তিত) ...
         const appContainer = document.getElementById('app');
         teacherPanel = document.getElementById('teacher');
         studentStartPanel = document.getElementById('studentStart');
@@ -2334,27 +2430,92 @@ td .action-buttons button {
 }
 /* প্রিন্ট স্টাইল */
 @media print {
-    /* ... (আগের print স্টাইল) ... */
-    /* নতুন ড্রয়িং মডাল প্রিন্ট করার সময় যেন না আসে */
-    #diagramModal {
+    /* পুরো বডি-কে সাদা ব্যাকগ্রাউন্ড এবং অটো সাইজ */
+    body {
+        margin: 0;
+        padding: 0;
+        background: none;
+        font-size: 12pt; /* প্রিন্ট করার জন্য ফন্ট সাইজ ফিক্স */
+        color: #000;
+    }
+    /* #app, #diagramModal এবং #default-message কে প্রিন্ট থেকে লুকানো */
+    #app, #diagramModal, #default-message, #detailModal, .modal-content .close {
         display: none !important;
     }
-    /* প্রশ্নের মধ্যে থাকা চিত্র প্রিন্টের জন্য নিশ্চিত করা */
-    .question-diagram-img {
-         -webkit-print-color-adjust: exact;
-         color-adjust: exact;
+    
+    /* শুধুমাত্র রেজাল্ট শীট বা প্রশ্নপত্রের শীট প্রিন্ট করা হবে */
+    /* ** রেজাল্ট প্রিন্ট ফিক্স ** */
+    #resultSheet, #printQuestionSheet {
+        display: block !important;
+        width: 210mm; /* A4 width */
+        min-height: 297mm; /* A4 height */
+        padding: 10mm;
+        margin: 0;
+        box-sizing: border-box;
+        overflow: hidden; 
+        position: static;
+    }
+    
+    .sheet-header, .sheet-info, .sheet-footer, .detail-item, .print-question-item, .print-answer-key {
+        break-inside: avoid; /* কন্টেন্ট যেন পেইজ না ভাঙে */
+        page-break-inside: avoid; /* পুরোনো ব্রাউজারের জন্য */
+        break-before: auto;
+    }
+    
+    /* প্রশ্নপত্রের প্রিন্ট ফিক্স */
+    #printQuestionSheet {
+        display: block !important;
+        width: 210mm; 
+        min-height: 297mm;
+        padding: 10mm;
+        margin: 0;
+        box-sizing: border-box;
+    }
+    
+    .print-question-item {
+        break-inside: avoid;
+        margin-bottom: 15px;
+        border: 1px dashed #eee; 
+        padding: 10px;
+        border-radius: 5px;
+    }
+    
+    /* কালার ফিক্স - ব্যাকগ্রাউন্ড কালার প্রিন্ট করার জন্য জোর করা */
+    .question-diagram-img, .detail-item, .print-answer-key, .print-header-section, .print-answer-key h3 {
+         -webkit-print-color-adjust: exact !important;
+         color-adjust: exact !important;
+    }
+    .print-answer-key {
+        border: 1px solid #d32f2f;
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 25px;
+    }
+    .print-answer-key h3 {
+        color: var(--danger-color) !important;
+    }
+    
+    /* MathJax ফিক্স */
+    .MathJax {
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
     }
 }
 </style>
 </head>
 <body>
 
+<div id="printQuestionSheet" style="display: none;">
+    <div id="printQuestionContent">
+        </div>
+</div>
+
 <div id="splashScreen">
     <div class="splash-circle">
         <div class="splash-title">MS EDUCATION</div>
         <div class="splash-subtitle">
-            শিক্ষক:– **<span class="teacher-name-display">মোবারাক হোসেন</span>**<br>
-            "<span class="teacher-school-display">আল হামরা নূরানী মাদরাসা</span>" 
+            শিক্ষক:– মোবারাক হোসেন<span class="teacher-name-display"></span><br>আল হামরা নূরানী মাদরাসা 
+            "<span class="teacher-school-display"></span>" 
         </div>
     </div>
     <div class="splash-teacher">
@@ -2396,7 +2557,8 @@ td .action-buttons button {
     <button id="saveOrUpdateExamBtn" onclick="saveExam(false)"><i class="fas fa-save"></i> সেভ করুন / নতুন পরীক্ষা তৈরি করুন</button>
     
     <button id="generateLinkBtn" onclick="saveExam(true)" style="display:none; background: var(--success-color);"><i class="fas fa-link"></i> পরীক্ষার লিঙ্ক তৈরি করুন</button>
-
+    
+    <button id="printExamBtn" onclick="printNewExamQuestions()" style="display:none; background: #673AB7; color: white;"><i class="fas fa-print"></i> প্রশ্নপত্র PDF (অফলাইন)</button>
 
     <div id="examLinkContainer" style="display:none; margin-top: 20px;">
     <hr>
@@ -2615,3 +2777,4 @@ td .action-buttons button {
 
 </body>
 </html>
+
